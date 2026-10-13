@@ -14,7 +14,7 @@
 |---|---|---|
 | 0 Repository & Bootstrap | SOL, 05 | PASS: Clone·hongbinwee Push dry-run·remote·pnpm10.11.1 설치·DB SELECT1·공식 migration. Backend health200, Store product4개 API200, Storefront /dk 및 /dk/store 브라우저 렌더, Admin emailpass200·/app/orders 대시보드/Products 링크 확인 |
 | 1 Design & Parallel Preparation | SOL, 02 | PASS: DESIGN_SYSTEM.md·기능 인벤토리·파일 소유권, Worker Worktree4개·기능 branch·구체 작업 지시. 모든 Worker 응답/작업 시작 확인 |
-| 2 Commerce & Catalog | 01, 03 | 한국 설정·상품 seed 및 소유권 검사 작업 진행 |
+| 2 Commerce & Catalog | 01, 03 | Catalog 03 Commit 3b2cf97을 b051d34로 통합, tsc·단위7/7 PASS. 한국 설정·소유권 01 작업 및 실제 순차 DB seed 대기 |
 | 3 Storefront UI | 02 | 디자인 MD 기준으로 기존 화면·한국어·테마 작업 진행 |
 | 4 E2E QA | 04 | 최소 테스트 의존성 제공·브라우저 설치·테스트 작성 진행 |
 | 5 Integration & Review | SOL, 05 | 대기 |
@@ -66,5 +66,8 @@ Gate 0: migration, DB SELECT 1, /health·Admin·Storefront HTTP, Store products 
 - 현재 01~04는 앱에서 실행 중으로 표시되나 최근 도구 실행 및 파일 변경에 진전이 없다. 실제 한도 오류 여부는 미확인이며 모델을 자동 전환하지 않았다.
 - 05 리뷰 후속 메시지가 자동 승인 검토에서 전송 승인 불명확 사유로 한 번 차단됐다. 사용자 직접 지시 및 마스터 §8.5/§23 STEP8 원본을 재확인해 권한 근거를 제시한 후 01~05 후속 전송이 승인됐다. 05는 주문 권한 독립 리뷰를 시작했다.
 - 05 주문 권한 독립 리뷰 완료: 정확한 GET `/store/orders/:id`에 authenticate 및 customer_id/actor_id 검사를 선행하는 공식 방식 확인. 본인 주문 확인·계정 상세는 기존 인증 헤더를 재사용하며, 게스트 주문 확인은 404가 되므로 로그인 필수 체크아웃과 함께 적용한다. transfer 경로·다른 메서드까지 matcher를 확장하지 않는다. 실제 수정 및 권한 PASS는 Worker 01 통합 후 확인한다.
+- Catalog 17파일(14 자체 SVG 포함) diff 검토 및 통합 후 Backend 전체 tsc exit0, Jest7/7 PASS, Medusa lint0 errors/27 KRW 금액 경고를 확인했다. 해당 경고는 major-unit 정수 입력을 휴리스틱으로 지적하며 규칙을 비활성화하지 않았다. 실제 금액은 KRW API/주문 검증 시 대조한다.
+- 기존 구매 UI baseline 브라우저 test 1건 실행 결과 FAIL: 가입 후 상품 담기 클릭 직후 이동한 Cart가 비어 checkout-button 대기90초 timeout. 비동기 담기 완료를 확인하지 않는 테스트 흐름을 04에게 전달했다. 추적·스크린샷은 공개 저장소 밖 Worker test-results에 보존했다. 최종 KRW/P0 검사와 구분한다.
+- 01/02/04의 도구 실행 및 파일 변경이 다시 관찰됐다. 샌드박스의 pnpm 의존성 링크 읽기 문제로 발생한 export 타입 오류와 실제 소스 오류를 분리해 SOL의 권한 허용 타입 검사 결과를 전달했다. 설치나 import 구조를 우회 변경하지 않는다.
 
 로컬 초기 실행 안내는 `LOCAL_SETUP.md`에 기록했다. Gate 2~6은 아직 완료하지 않았다.

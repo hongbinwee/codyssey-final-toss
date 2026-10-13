@@ -86,7 +86,7 @@ export default async function seedKorea({ container }: ExecArgs) {
 
   const currencies = (store.supported_currencies ?? [])
     .map((currency) => currency?.currency_code)
-    .filter((code) => Boolean(code))
+    .filter((code): code is string => Boolean(code))
 
   if (!currencies.includes(REGION_CURRENCY)) {
     await updateStoresWorkflow(container).run({
@@ -114,15 +114,13 @@ export default async function seedKorea({ container }: ExecArgs) {
     fields: ["id", "name", "currency_code"],
   })
 
-  let koreaRegion = regions.find(
+  const koreaRegionExists = regions.some(
     (region) =>
       region.name === REGION_NAME && region.currency_code === REGION_CURRENCY,
   )
 
-  if (!koreaRegion) {
-    const {
-      result: [created],
-    } = await createRegionsWorkflow(container).run({
+  if (!koreaRegionExists) {
+    await createRegionsWorkflow(container).run({
       input: {
         regions: [
           {
@@ -134,7 +132,6 @@ export default async function seedKorea({ container }: ExecArgs) {
         ],
       },
     })
-    koreaRegion = created
     logger.info("Created the Korea region (krw, pp_system_default).")
   } else {
     logger.info("Korea region already exists. Skipping region creation.")
@@ -190,7 +187,20 @@ export default async function seedKorea({ container }: ExecArgs) {
     ],
   })
 
-  let koreaLocation = locations.find(
+  // The graph row carries link arrays (sales_channels, fulfillment_*), the
+  // workflow result carries fulfillment_sets as full DTOs. Keep a shared
+  // partial shape so both fit without casts, then guard after creation.
+  type KoreaLocation = {
+    id: string
+    name?: string | null
+    sales_channels?: ({ id?: string | null } | null | undefined)[] | null
+    fulfillment_providers?:
+      | ({ id?: string | null } | null | undefined)[]
+      | null
+    fulfillment_sets?: ({ id?: string | null } | null | undefined)[] | null
+  }
+
+  let koreaLocation: KoreaLocation | undefined = locations.find(
     (location) => location.name === STOCK_LOCATION_NAME,
   )
 
@@ -215,6 +225,13 @@ export default async function seedKorea({ container }: ExecArgs) {
     logger.info("Created the Korea Warehouse stock location.")
   } else {
     logger.info("Korea Warehouse already exists. Skipping location creation.")
+  }
+
+  if (!koreaLocation) {
+    throw new MedusaError(
+      MedusaError.Types.UNEXPECTED_STATE,
+      "Korea Warehouse stock location was not created.",
+    )
   }
 
   const linkedProviders = (koreaLocation.fulfillment_providers ?? [])
@@ -317,6 +334,17 @@ export default async function seedKorea({ container }: ExecArgs) {
     (option) => !existingNames.has(option.name),
   )
 
+  // shipping_option_type.code has no unique constraint, so passing a type
+  // object would create a second "standard" row next to the Europe seed's.
+  // Reuse the existing type row (its id) whenever the code already exists.
+  const { data: existingTypes } = await query.graph({
+    entity: "shipping_option_type",
+    fields: ["id", "code"],
+  })
+  const typeIdByCode = new Map(
+    existingTypes.map((type) => [type.code, type.id]),
+  )
+
   if (missingOptions.length) {
     await createShippingOptionsWorkflow(container).run({
       input: missingOptions.map((option) => ({
@@ -325,7 +353,7 @@ export default async function seedKorea({ container }: ExecArgs) {
         provider_id: FULFILLMENT_PROVIDER,
         service_zone_id: serviceZone.id,
         shipping_profile_id: shippingProfile.id,
-        type: option.type,
+        type: typeIdByCode.get(option.type.code) ?? option.type,
         prices: [{ currency_code: REGION_CURRENCY, amount: option.amount }],
         rules: [
           {

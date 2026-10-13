@@ -12,11 +12,11 @@
 
 | Gate | 담당 | 상태 / 완료 증거 |
 |---|---|---|
-| 0 Repository & Bootstrap | SOL, 05 | Clone·remote 준비. 의존성 설치/DB/서버/API/Admin 검증 진행 중 |
-| 1 Design & Parallel Preparation | SOL, 02 | DESIGN_SYSTEM.md 초안. 기능 인벤토리·Worktree·Worker 지시 준비 |
-| 2 Commerce & Catalog | 01, 03 | 대기 |
-| 3 Storefront UI | 02 | 대기 |
-| 4 E2E QA | 04 | 대기 |
+| 0 Repository & Bootstrap | SOL, 05 | PASS: Clone·hongbinwee Push dry-run·remote·pnpm10.11.1 설치·DB SELECT1·공식 migration. Backend health200, Store product4개 API200, Storefront /dk 및 /dk/store 브라우저 렌더, Admin emailpass200·/app/orders 대시보드/Products 링크 확인 |
+| 1 Design & Parallel Preparation | SOL, 02 | PASS: DESIGN_SYSTEM.md·기능 인벤토리·파일 소유권, Worker Worktree4개·기능 branch·구체 작업 지시. 모든 Worker 응답/작업 시작 확인 |
+| 2 Commerce & Catalog | 01, 03 | 한국 설정·상품 seed 및 소유권 검사 작업 진행 |
+| 3 Storefront UI | 02 | 디자인 MD 기준으로 기존 화면·한국어·테마 작업 진행 |
+| 4 E2E QA | 04 | 최소 테스트 의존성 제공·브라우저 설치·테스트 작성 진행 |
 | 5 Integration & Review | SOL, 05 | 대기 |
 | 6 Commerce Frame Freeze | SOL | 대기 |
 
@@ -49,3 +49,7 @@ Seed 실행 순서: 기본 migration/공식 초기 seed → 한국 infra seed(01
 ## 검증 계획
 
 Gate 0: migration, DB SELECT 1, /health·Admin·Storefront HTTP, Store products 요청. Gate 2: KRW region/배송/재고, 공식 Cart·payment·Order API 및 DB 주문 확인, 고객별 접근 제한. Gate 3/4: 한국어·0자리 KRW·모바일/데스크톱·세 테마·실제 구매 흐름. Gate 5/6: build·실행 테스트·diff 리뷰·secret/참고자료 제외·origin/hongbinwee 확인 후 Push.
+
+## Bootstrap 실행 증거
+
+2026-10-14 KST: 원본 f677db4, 디자인 기준38c524c, QA 의존성d161fff. 프로젝트 전용 PostgreSQL17.11 / toss3days / localhost55432, 공식 migration exit0. 로컬 비공개 .local/bootstrap에 migration/browser 결과와 서버 PID·로그·스크린샷 보관. Backend9000, Storefront8000. 개발용 fake redis/local event bus/in-memory locking은 기본 로컬 설정이며 운영 배포는 현재 범위 밖.

@@ -37,7 +37,16 @@ pnpm dev
 - Admin: `http://localhost:9000/app`
 - Storefront: `http://localhost:8000`
 
-한국 Region과 상품 seed는 Worker 구현 및 실행 검증 전이다. 현재 기본 데이터의 국가 경로는 `/dk`이며, 한국 seed 통합 이후 기본 국가를 `kr`로 전환한다. seed 실행 순서는 공식 migration/초기 데이터 → 한국 Region·배송 설정 → 한국 상품이다. 동일 DB에 seed나 migration을 동시에 실행하지 않는다.
+한국 Region과 상품 seed는 구현·순차 실행·재실행 검증을 마쳤다. Backend 디렉터리에서 아래 순서로 실행한다. 동일 DB에 seed나 migration을 동시에 실행하지 않는다.
+
+```powershell
+pnpm exec medusa exec ./src/scripts/seed-korea.ts
+pnpm exec medusa exec ./src/scripts/seed-korean-catalog.ts
+```
+
+한국 설정은 기존 통화를 보존하고 KRW Region·한국 창고·일반배송 3,000원·무료배송을 추가한다. Catalog는 14개 한국어 데모 상품과 27개 Variant, 품절·한정 재고·실제 할인 목록을 만든다. 기존 상품·재고 수준을 찾으면 건너뛰므로 주문으로 소진된 재고를 자동 복구하지 않는다.
+
+Storefront의 `NEXT_PUBLIC_DEFAULT_REGION=kr`을 설정하고 서버를 재시작한다. 상품 이미지의 기본 원본 주소는 `http://localhost:8000/demo-products`이다. 포트를 바꾸는 경우 Catalog seed 실행 전에 `STOREFRONT_URL`을 설정해야 한다. 현재 한국어 UI·주문 권한 통합 검증은 진행 중이다.
 
 ## 검증
 

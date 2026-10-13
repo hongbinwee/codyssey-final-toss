@@ -14,7 +14,7 @@
 |---|---|---|
 | 0 Repository & Bootstrap | SOL, 05 | PASS: Clone·hongbinwee Push dry-run·remote·pnpm10.11.1 설치·DB SELECT1·공식 migration. Backend health200, Store product4개 API200, Storefront /dk 및 /dk/store 브라우저 렌더, Admin emailpass200·/app/orders 대시보드/Products 링크 확인 |
 | 1 Design & Parallel Preparation | SOL, 02 | PASS: DESIGN_SYSTEM.md·기능 인벤토리·파일 소유권, Worker Worktree4개·기능 branch·구체 작업 지시. 모든 Worker 응답/작업 시작 확인 |
-| 2 Commerce & Catalog | 01, 03 | Catalog 03 Commit 3b2cf97을 b051d34로 통합, tsc·단위7/7 PASS. 한국 설정·소유권 01 작업 및 실제 순차 DB seed 대기 |
+| 2 Commerce & Catalog | 01, 03 | Catalog b051d34·한국 설정8c39396 통합. 전용DB seed·재실행 PASS, API14상품27Variant/KRW·할인·재고 PASS. 소유권 통합·KRW 주문/DB 대조 진행 |
 | 3 Storefront UI | 02 | 디자인 MD 기준으로 기존 화면·한국어·테마 작업 진행 |
 | 4 E2E QA | 04 | 최소 테스트 의존성 제공·브라우저 설치·테스트 작성 진행 |
 | 5 Integration & Review | SOL, 05 | 대기 |
@@ -69,5 +69,10 @@ Gate 0: migration, DB SELECT 1, /health·Admin·Storefront HTTP, Store products 
 - Catalog 17파일(14 자체 SVG 포함) diff 검토 및 통합 후 Backend 전체 tsc exit0, Jest7/7 PASS, Medusa lint0 errors/27 KRW 금액 경고를 확인했다. 해당 경고는 major-unit 정수 입력을 휴리스틱으로 지적하며 규칙을 비활성화하지 않았다. 실제 금액은 KRW API/주문 검증 시 대조한다.
 - 기존 구매 UI baseline 브라우저 test 1건 실행 결과 FAIL: 가입 후 상품 담기 클릭 직후 이동한 Cart가 비어 checkout-button 대기90초 timeout. 비동기 담기 완료를 확인하지 않는 테스트 흐름을 04에게 전달했다. 추적·스크린샷은 공개 저장소 밖 Worker test-results에 보존했다. 최종 KRW/P0 검사와 구분한다.
 - 01/02/04의 도구 실행 및 파일 변경이 다시 관찰됐다. 샌드박스의 pnpm 의존성 링크 읽기 문제로 발생한 export 타입 오류와 실제 소스 오류를 분리해 SOL의 권한 허용 타입 검사 결과를 전달했다. 설치나 import 구조를 우회 변경하지 않는다.
+- 전용 localhost55432/toss3days 대상 확인 후 `seed-korea` → `seed-korean-catalog` 순차 exit0. 각각 재실행도 exit0이며 기존 설정·상품·재고·세일 목록을 추가 생성하지 않았다. Store API에서14상품·27 KRW Variant, 품절0·한정2/3/3, 실제549,000→479,000 할인, 한국어 상품명·pp_system_default를 검증했다. 증거 `.local/bootstrap/korean-catalog-result.json`.
+- 05 Catalog 통합 독립 리뷰에서 추가 확정 결함·과잉 구현은 없다고 보고했다. 기본 판매 채널·한국 창고 누락 fail-fast, DTO, 재고보존 정책과 자체 SVG를 확인했다.
+- 실제 한국 Store API 구매 및 PostgreSQL 대조 PASS: 합성 고객 등록·재로그인, 품목 수량/합계·삭제, 배송·System 결제, 실제 KRW 주문, 본인 주문 목록/상세, 같은 주문의 DB customer_id/currency_code 확인. 증거 `.local/bootstrap/korean-commerce-result.json`. 비로그인·타 고객 차단 및 브라우저 전체 PASS는 별도 남아 있다.
+- 기본 국가 변수를 kr로 바꾼 후 실제 루트 HTTP307 `/kr` 확인.
+- 한국 설정 통합 후 정식 Medusa build는 FAIL(exit1): 생성 Graph 타입 갱신 후 seed-korea.ts의 currency_code 좁히기·RegionDTO/StockLocationDTO 대입·undefined 가드 오류가 발견됐다. Admin frontend build는 통과했지만 Backend 완료로 인정하지 않는다. 01에 최소 타입 수정 follow-up Commit을 요청했다.
 
 로컬 초기 실행 안내는 `LOCAL_SETUP.md`에 기록했다. Gate 2~6은 아직 완료하지 않았다.

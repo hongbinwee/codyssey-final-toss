@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-label="케이블 정리 세트">
+  <!-- Self-made demo artwork for 토스 3days seed data. Not a real product photo. -->
+  <rect width="800" height="800" fill="#E8F3FF"/>
+  
+    <circle cx="290" cy="330" r="60" fill="none" stroke="#3182F6" stroke-width="14"/>
+    <circle cx="510" cy="330" r="60" fill="none" stroke="#3182F6" stroke-width="14" opacity="0.6"/>
+    <path d="M290 390 C 290 470 510 430 510 510" fill="none" stroke="#3182F6" stroke-width="14" stroke-linecap="round"/>
+    <rect x="240" y="500" width="320" height="34" rx="17" fill="#3182F6" opacity="0.35"/>
+  <text x="400" y="680" text-anchor="middle" font-family="Malgun Gothic, Apple SD Gothic Neo, sans-serif" font-size="40" font-weight="700" fill="#191F28">케이블 정리 세트</text>
+  <text x="400" y="726" text-anchor="middle" font-family="Malgun Gothic, Apple SD Gothic Neo, sans-serif" font-size="22" fill="#8B95A1">3days 데모 이미지</text>
+</svg>

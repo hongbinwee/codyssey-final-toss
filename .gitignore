@@ -55,3 +55,15 @@ yarn-error.log*
 ehthumbs.db
 Thumbs.db
 **/.DS_Store
+
+# Project-local state and verification artifacts
+.local/
+.worktrees/
+test-results/
+playwright-report/
+**/*.tsbuildinfo
+**/.env.*
+!**/.env.template
+!**/.env.example
+*.sql
+*.dump

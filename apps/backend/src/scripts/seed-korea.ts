@@ -336,7 +336,8 @@ export default async function seedKorea({ container }: ExecArgs) {
 
   // shipping_option_type.code has no unique constraint, so passing a type
   // object would create a second "standard" row next to the Europe seed's.
-  // Reuse the existing type row (its id) whenever the code already exists.
+  // The workflow DTO accepts both type (object) and type_id; the upsert step
+  // maps type_id onto type when set, so an existing row is reused by code.
   const { data: existingTypes } = await query.graph({
     entity: "shipping_option_type",
     fields: ["id", "code"],
@@ -353,7 +354,8 @@ export default async function seedKorea({ container }: ExecArgs) {
         provider_id: FULFILLMENT_PROVIDER,
         service_zone_id: serviceZone.id,
         shipping_profile_id: shippingProfile.id,
-        type: typeIdByCode.get(option.type.code) ?? option.type,
+        type_id: typeIdByCode.get(option.type.code),
+        type: option.type,
         prices: [{ currency_code: REGION_CURRENCY, amount: option.amount }],
         rules: [
           {

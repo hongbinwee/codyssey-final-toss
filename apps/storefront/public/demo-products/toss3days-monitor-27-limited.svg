@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-label="27인치 한정 패키지">
+  <!-- Self-made demo artwork for 토스 3days seed data. Not a real product photo. -->
+  <rect width="800" height="800" fill="#FFF1F2"/>
+  
+    <rect x="180" y="210" width="440" height="280" rx="16" fill="#FFFFFF" stroke="#D92D3A" stroke-width="10"/>
+    <rect x="210" y="240" width="380" height="220" rx="8" fill="#D92D3A" opacity="0.12"/>
+    <rect x="374" y="490" width="52" height="56" fill="#D92D3A" opacity="0.85"/>
+    <rect x="300" y="546" width="200" height="18" rx="9" fill="#D92D3A" opacity="0.55"/>
+  <text x="400" y="680" text-anchor="middle" font-family="Malgun Gothic, Apple SD Gothic Neo, sans-serif" font-size="40" font-weight="700" fill="#191F28">27인치 한정 패키지</text>
+  <text x="400" y="726" text-anchor="middle" font-family="Malgun Gothic, Apple SD Gothic Neo, sans-serif" font-size="22" fill="#8B95A1">3days 데모 이미지</text>
+</svg>

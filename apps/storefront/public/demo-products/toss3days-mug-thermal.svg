@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-label="보온 텀블러 500ml">
+  <!-- Self-made demo artwork for 토스 3days seed data. Not a real product photo. -->
+  <rect width="800" height="800" fill="#E8F8F0"/>
+  
+    <rect x="300" y="200" width="200" height="380" rx="34" fill="#FFFFFF" stroke="#07834A" stroke-width="10"/>
+    <rect x="318" y="250" width="164" height="16" rx="8" fill="#07834A" opacity="0.5"/>
+    <rect x="290" y="176" width="220" height="44" rx="14" fill="#07834A"/>
+  <text x="400" y="680" text-anchor="middle" font-family="Malgun Gothic, Apple SD Gothic Neo, sans-serif" font-size="40" font-weight="700" fill="#191F28">보온 텀블러 500ml</text>
+  <text x="400" y="726" text-anchor="middle" font-family="Malgun Gothic, Apple SD Gothic Neo, sans-serif" font-size="22" fill="#8B95A1">3days 데모 이미지</text>
+</svg>

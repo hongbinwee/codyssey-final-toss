@@ -14,10 +14,10 @@
 |---|---|---|
 | 0 Repository & Bootstrap | SOL, 05 | PASS: Clone·hongbinwee Push dry-run·remote·pnpm10.11.1 설치·DB SELECT1·공식 migration. Backend health200, Store product4개 API200, Storefront /dk 및 /dk/store 브라우저 렌더, Admin emailpass200·/app/orders 대시보드/Products 링크 확인 |
 | 1 Design & Parallel Preparation | SOL, 02 | PASS: DESIGN_SYSTEM.md·기능 인벤토리·파일 소유권, Worker Worktree4개·기능 branch·구체 작업 지시. 모든 Worker 응답/작업 시작 확인 |
-| 2 Commerce & Catalog | 01, 03 | PASS: Catalog/한국 설정/소유권 통합982963b, 전용DB seed·재실행/API14상품27Variant/KRW·할인·재고, Commerce22/22(skip0)·주문DB고객/통화 대조. 통합build 배송type 수정은 Gate5 잔여 |
+| 2 Commerce & Catalog | 01, 03 | PASS: Catalog/한국 설정/소유권 통합, 전용DB seed·재실행/API14상품27Variant/KRW·할인·재고, Commerce22/22(skip0)·주문DB고객/통화 대조. 배송type 수정 후 정식 Backend/Admin build PASS |
 | 3 Storefront UI | 02 | 디자인 MD 기준으로 기존 화면·한국어·테마 작업 진행 |
 | 4 E2E QA | 04 | 최소 테스트 의존성 제공·브라우저 설치·테스트 작성 진행 |
-| 5 Integration & Review | SOL, 05 | 대기 |
+| 5 Integration & Review | SOL, 05 | 진행: Commerce/Catalog 통합·독립리뷰·정식 Backend/Admin build PASS, 한국어 UI/QA 통합 후 전체 회귀 대기 |
 | 6 Commerce Frame Freeze | SOL | 대기 |
 
 ## Medusa 기능 인벤토리
@@ -79,5 +79,6 @@ Gate 0: migration, DB SELECT 1, /health·Admin·Storefront HTTP, Store products 
 - 작업 중인 02 UI를 메인8000과 분리한 localhost8001에서 읽기 검증했다. 실제 Light/Dark/System 컨트롤·reload유지·OS 테마양방향 반영·한국어문서·홈/상품 가로넘침·브라우저pageerror 검사7개 PASS. 390px Hero 문장 잘림과 KRW가격없는 기존상품 노출은 별도 시각 검증에서 발견하여02수정 요청했다. 스크린샷과 `.local/bootstrap/ui-draft-result.json`에 보존한다.
 - UI draft에서 실제 고객로그인→옵션선택→Cart추가완료→배송입력→일반배송→System 모의결제→주문확인 브라우저 흐름 PASS, pageerror없음. 같은 KRW주문의 DB 고객연결 대조 PASS. `.local/bootstrap/ui-draft-cart-result.json`·`ui-draft-db-result.json`에 보존했다. 작업 중 draft 증거이므로 Gate3/4 최종통합 완료로 대체하지 않는다.
 - 05 UI독립리뷰에서 로그인필수checkout가드 누락·checkout고정흰배경·localStorage읽기실패예외를 발견하여02에전달했다. 실제Header안정된다크CSS는정상으로 확인했다.
+- 01 Worktree에 작성된 배송 `type_id`/`type` 최소 수정과 동일한 내용을 main에 통합해 정식 `medusa build` 재검증 PASS(exit0): Backend9.92초·Admin29.71초, lint0 errors/28 KRW금액경고. Worker파일은 수정하지 않았으며 후속 Commit과 동일성 대조·이력 정리 예정.
 
 로컬 초기 실행 안내는 `LOCAL_SETUP.md`에 기록했다. Gate 2~6은 아직 완료하지 않았다.

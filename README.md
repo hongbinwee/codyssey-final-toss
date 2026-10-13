@@ -1,3 +1,5 @@
+토스 3days 프로젝트: [현재 검증 상태](docs/EXECUTION_STATUS.md) · [로컬 실행](docs/LOCAL_SETUP.md) · [Storefront 디자인 기준](docs/DESIGN_SYSTEM.md). 아래는 기반 Medusa DTC Starter의 원본 안내입니다.
+
 <p align="center">
   <a href="https://www.medusajs.com">
   <picture>

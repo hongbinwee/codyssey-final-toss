@@ -53,3 +53,17 @@ Gate 0: migration, DB SELECT 1, /health·Admin·Storefront HTTP, Store products 
 ## Bootstrap 실행 증거
 
 2026-10-14 KST: 원본 f677db4, 디자인 기준38c524c, QA 의존성d161fff. 프로젝트 전용 PostgreSQL17.11 / toss3days / localhost55432, 공식 migration exit0. 로컬 비공개 .local/bootstrap에 migration/browser 결과와 서버 PID·로그·스크린샷 보관. Backend9000, Storefront8000. 개발용 fake redis/local event bus/in-memory locking은 기본 로컬 설정이며 운영 배포는 현재 범위 밖.
+
+## 원본 기반 구매 흐름 및 통합 전 검증
+
+- 기존 Store API로 고객 등록·로그인, Cart 수량 변경과 합계·삭제, 배송 선택, pp_system_default 결제, 실제 Order 생성, 본인 주문 상세·목록 조회를 실행했다. 원본 EUR 기준이며 최종 KRW/P0 완료 증거로 대체하지 않는다.
+- 같은 Order ID를 PostgreSQL의 `order` 테이블에서 조회하여 customer_id·currency_code를 대조했다. 주문 ID와 실행 결과는 공개 저장소 밖 `.local/bootstrap/original-commerce-result.json`에 기록했다.
+- 주문 상세 권한 재현: 본인·비로그인·별도 합성 고객 모두 같은 주문의 `/store/orders/:id`에 HTTP200을 반환했다. 비로그인/다른 고객 차단 FAIL이며 Worker 01 소유권 middleware 통합 후 반드시 재검증한다. 재현 증거는 `.local/bootstrap/original-ownership-result.json`에 기록했다.
+- Backend build exit0. 원본 기반 Backend `eslint src medusa-config.ts` exit0, Storefront `tsc --noEmit --incremental false` exit0. `/health`와 `/dk` HTTP200 재확인.
+- 공식 Next.js 설정은 build 시 TypeScript 오류를 무시하므로 최종 통합에서도 별도 tsc를 실행해야 한다.
+- Worker 03 데이터 단위 테스트는 검증했으나 seed의 실제 Medusa DTO 오류를 발견하여 수정을 요청했다. QA의 테스트 수집 성공은 실제 E2E PASS로 기록하지 않는다.
+- 05 독립 읽기 리뷰 회수: Catalog 가격 목록의 `name`·`type`이 설치된 CreatePriceListWorkflowInputDTO에 없음을 대조했다. 한국 재고 위치·판매 채널의 임의 fallback도 제거해야 한다. QA는 pp_system_default만 선택하고, 전용 로컬 실행 대상을 확인하며, 필수 fixture 누락과 실제 테마 컨트롤 동작을 검증해야 한다. 기존 재고를 주문 전 상태로 자동 초기화하지 않으며 소진된 테스트 재고는 명시적으로 관리한다.
+- 현재 01~04는 앱에서 실행 중으로 표시되나 최근 도구 실행 및 파일 변경에 진전이 없다. 실제 한도 오류 여부는 미확인이며 모델을 자동 전환하지 않았다.
+- 05 리뷰 후속 메시지가 자동 승인 검토에서 다른 채팅 메시지 승인 불명확 사유로 차단됐다. 해당 전송은 중단하고 사용자에게 후속 전송 승인을 요청했다. 읽기 조회 및 독립 검증은 계속 가능하다.
+
+로컬 초기 실행 안내는 `LOCAL_SETUP.md`에 기록했다. Gate 2~6은 아직 완료하지 않았다.

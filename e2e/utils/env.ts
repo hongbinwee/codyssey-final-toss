@@ -3,8 +3,12 @@ import path from "node:path"
 
 // 지정 worktree 루트 (e2e/utils 기준 두 단계 위)
 const REPO_ROOT = path.resolve(__dirname, "..", "..")
-// .env는 gitignore 대상이라 worktree에 복사되지 않는다. 없으면 메인 checkout을 참조한다.
-const MAIN_CHECKOUT = path.resolve(REPO_ROOT, "..", "..", "commerce")
+// worktree(.worktrees 하위)면 메인 checkout은 프로젝트 루트의 commerce이다.
+// 통합 후에는 REPO_ROOT 자체가 main checkout이므로 같은 경로를 읽는다.
+const isWorktree = REPO_ROOT.split(path.sep).includes(".worktrees")
+const MAIN_CHECKOUT = isWorktree
+  ? path.resolve(REPO_ROOT, "..", "..", "commerce")
+  : REPO_ROOT
 
 const parseEnvFile = (file: string): Record<string, string> => {
   if (!fs.existsSync(file)) {
@@ -33,7 +37,7 @@ const parseEnvFile = (file: string): Record<string, string> => {
   return out
 }
 
-// .env → .env.local 순으로 병합(뒤가 우선), 메인 checkout → worktree 순
+// worktree → 메인 checkout 순으로 .env / .env.local 병합(뒤가 우선)
 const loadAppEnv = (appDir: string): Record<string, string> => {
   const candidates = [
     path.join(MAIN_CHECKOUT, appDir, ".env"),
@@ -65,7 +69,19 @@ export const e2eEnv = {
     storefrontEnv.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY,
     ""
   )!,
-  // 비우면 활성 리전에서 자동 해석한다.
-  countryCode: process.env.E2E_COUNTRY_CODE ?? "",
+  // 비우면 kr
+  countryCode: process.env.E2E_COUNTRY_CODE ?? "kr",
   customerPassword: process.env.E2E_CUSTOMER_PASSWORD,
 }
+
+// E2E는 로컬 전용 — 원격 서버를 가리키면 실행 전 즉시 실패한다.
+const assertLocalhost = (url: string, label: string) => {
+  const host = new URL(url).hostname
+  if (!["localhost", "127.0.0.1", "::1"].includes(host)) {
+    throw new Error(
+      "[E2E] " + label + "은 localhost/127.0.0.1만 허용한다: " + host
+    )
+  }
+}
+assertLocalhost(e2eEnv.baseURL, "E2E_BASE_URL")
+assertLocalhost(e2eEnv.backendURL, "E2E_BACKEND_URL")

@@ -56,30 +56,62 @@ test.describe("UI 공통", () => {
       page.evaluate(() =>
         document.documentElement.classList.contains("dark")
       )
+    const bodyBg = () =>
+      page.evaluate(() => getComputedStyle(document.body).backgroundColor)
+    // Headless UI Popover는 옵션 선택 후 자동으로 닫히지 않는다 —
+    // 열기 전 option 가시성을 확인하고 필요할 때만 trigger를 누른다.
+    const openTheme = async () => {
+      const opt = page.getByTestId("theme-option-light")
+      if (!(await opt.isVisible().catch(() => false))) {
+        await trigger.click()
+      }
+      await expect(opt).toBeVisible()
+    }
 
-    // dark 선택 → html.dark 반영
-    await trigger.click()
+    // 시작 OS 선호를 light로 고정해 프로젝트(desktop-dark) 간 차이를 없앤다
+    await page.emulateMedia({ colorScheme: "light" })
+
+    // dark 선택 → html.dark 반영 + 실제 배경이 어두워진다
+    await openTheme()
     await page.getByTestId("theme-option-dark").click()
     await expect
-      .poll(htmlHasDark, "다크 선택 후 html.dark 미적용")
+      .poll(htmlHasDark, { message: "다크 선택 후 html.dark 미적용" })
       .toBe(true)
+    const darkBg = await bodyBg()
 
-    // reload 후에도 localStorage 기반 선택이 유지된다
+    // reload 후에도 localStorage(3days-theme) 선택이 유지된다
     await page.reload()
     await expect
-      .poll(htmlHasDark, "reload 후 다크 유지 실패(3days-theme 미지속)")
+      .poll(htmlHasDark, {
+        message: "reload 후 다크 유지 실패(3days-theme 미지속)",
+      })
       .toBe(true)
+    expect(
+      await page.evaluate(() => localStorage.getItem("3days-theme")),
+      "3days-theme이 dark로 저장되지 않았다"
+    ).toBe("dark")
 
-    // system 선택 → OS prefers-color-scheme 에뮬레이션을 따른다
-    const wantDark = test.info().project.use.colorScheme === "dark"
-    await page.getByTestId("theme-select-button").click()
+    // system 선택 → emulateMedia 양방향으로 OS 추종을 검증한다
+    await openTheme()
     await page.getByTestId("theme-option-system").click()
+    await page.emulateMedia({ colorScheme: "dark" })
     await expect
-      .poll(htmlHasDark, "system 모드가 OS 선호를 따르지 않는다")
-      .toBe(wantDark)
+      .poll(htmlHasDark, {
+        message: "system 모드가 OS dark를 따르지 않는다",
+      })
+      .toBe(true)
+    await page.emulateMedia({ colorScheme: "light" })
+    await expect
+      .poll(htmlHasDark, {
+        message: "system 모드가 OS light를 따르지 않는다",
+      })
+      .toBe(false)
+    const lightBg = await bodyBg()
+    // computed 배경이 실제로 다르다 — class 토글만으로 PASS 금지
+    expect(lightBg).not.toBe(darkBg)
 
     // light 선택 → dark 해제
-    await page.getByTestId("theme-select-button").click()
+    await openTheme()
     await page.getByTestId("theme-option-light").click()
     await expect.poll(htmlHasDark).toBe(false)
     expect(errors).toEqual([])

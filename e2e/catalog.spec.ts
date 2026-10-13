@@ -91,11 +91,13 @@ test.describe("상품 탐색", () => {
     const product = cat.optioned
     await page.goto("/" + cat.countryCode + "/products/" + product.handle)
 
-    await expect(page.getByTestId("product-container")).toBeVisible()
-    await expect(page.getByTestId("product-title")).toContainText(
+    const container = page.getByTestId("product-container")
+    await expect(container).toBeVisible()
+    await expect(container.getByTestId("product-title")).toContainText(
       product.title
     )
-    const priceEl = page.getByTestId("product-price").first()
+    // 관련 상품 카드도 같은 testid를 쓰므로 product-container 안으로 scope한다
+    const priceEl = container.getByTestId("product-price").first()
     await expect(priceEl).toContainText(currencyText())
 
     const knownAmounts = variantAmounts(product)
@@ -126,10 +128,12 @@ test.describe("상품 탐색", () => {
     const product = cat.discounted
     await page.goto("/" + cat.countryCode + "/products/" + product.handle)
 
-    const priceEl = page.getByTestId("product-price").first()
-    const originalEl = page
+    const container = page.getByTestId("product-container")
+    await expect(container).toBeVisible()
+    const priceEl = container.getByTestId("product-price").first()
+    const originalEl = container
       .getByTestId("original-product-price")
-      .or(page.getByTestId("original-price"))
+      .or(container.getByTestId("original-price"))
       .first()
     await expect(priceEl).toBeVisible()
     await expect(originalEl).toBeVisible()

@@ -91,7 +91,7 @@ export const resolveRegion = async (): Promise<{
   countryCode: string
 }> => {
   const regions = await getRegions()
-  const preferred = e2eEnv.countryCode.toLowerCase() || "kr"
+  const preferred = e2eEnv.countryCode.toLowerCase()
   const region =
     regions.find(isKoreanRegion) ??
     regions.find((r) =>
@@ -139,11 +139,13 @@ const variantPurchasable = (v: StoreProduct) =>
     v.allow_backorder ||
     (v.inventory_quantity ?? 0) > 0)
 
+// 재고 소모 방지 — 시나리오용 저재고(1~5)만 재고 검증 대상으로 한다.
 const variantStockLimited = (v: StoreProduct) =>
   Boolean(v) &&
   v.manage_inventory === true &&
   !v.allow_backorder &&
-  (v.inventory_quantity ?? 0) >= 1
+  (v.inventory_quantity ?? 0) >= 1 &&
+  (v.inventory_quantity ?? 0) <= 5
 
 const variantDiscounted = (v: StoreProduct) => {
   const p = v?.calculated_price
@@ -163,7 +165,7 @@ export type CatalogPicks = {
   simple: StoreProduct // 옵션 선택 없이 담기 가능한 상품
   optioned: StoreProduct // 옵션 선택 필요한 다중 variant 상품
   soldOut: StoreProduct // 전 variant 구매 불가 상품
-  stockLimited: StoreProduct // 재고 수량 관리 상품
+  stockLimited: StoreProduct // metadata.scenario==='limited' + 재고 1~5
   discounted: StoreProduct // 정가>할인가 상품
 }
 
@@ -214,7 +216,11 @@ export const discoverCatalog = (): Promise<CatalogPicks> => {
         (p) => variantsOf(p).length > 0 && purchasableVariants(p).length === 0
       ) ?? null
     const stockLimited =
-      korean.find((p) => variantsOf(p).some(variantStockLimited)) ?? null
+      korean.find(
+        (p) =>
+          p?.metadata?.scenario === "limited" &&
+          variantsOf(p).some(variantStockLimited)
+      ) ?? null
     const discounted =
       korean.find((p) => variantsOf(p).some(variantDiscounted)) ?? null
 
@@ -287,20 +293,15 @@ export const registerCustomerApi = async (
     if (!create.ok) {
       throw new Error("[E2E] customer 생성 실패: " + create.status)
     }
-    const relogin = await storeApi("/auth/customer/emailpass", {
-      method: "POST",
-      body: { email, password },
-    })
-    token = relogin.json?.token
-    if (!relogin.ok || !token) {
-      throw new Error("[E2E] 재로그인 실패: " + relogin.status)
-    }
-  } else {
-    const login = await storeApi("/auth/customer/emailpass", {
-      method: "POST",
-      body: { email, password },
-    })
-    token = login.json?.token ?? token
+  }
+  // 모든 분기에서 재로그인해 customer actor 토큰을 확보한다 — res.ok/token 필수.
+  const login = await storeApi("/auth/customer/emailpass", {
+    method: "POST",
+    body: { email, password },
+  })
+  token = login.json?.token
+  if (!login.ok || !token) {
+    throw new Error("[E2E] 재로그인 실패: " + login.status)
   }
   return { email, password, token }
 }
@@ -456,8 +457,14 @@ export const createOrderForCustomer = async (opts: {
   return { id: order.id, display_id: order.display_id }
 }
 
-export const getOrderApi = (id: string, token: string) =>
-  storeApi("/store/orders/" + id, { token })
+export const getOrderApi = (id: string, token: string, fields?: string) =>
+  storeApi("/store/orders/" + id, {
+    token,
+    query: fields ? { fields } : undefined,
+  })
+
+export const getCustomerApi = (token: string) =>
+  storeApi("/store/customers/me", { token })
 
 export const listOrderIdsApi = async (token: string): Promise<string[]> => {
   const res = await storeApi("/store/orders", {

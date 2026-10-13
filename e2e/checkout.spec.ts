@@ -7,10 +7,12 @@ import {
 } from "./utils/api"
 import {
   TEST_PASSWORD,
+  amountOf,
   koreanAddress,
   testEmail,
   trackConsoleErrors,
 } from "./utils/helpers"
+import { e2eEnv } from "./utils/env"
 
 // 구매 → 주문 → 내역이 하나의 주문 상태를 공유하므로 직렬 실행한다.
 test.describe.configure({ mode: "serial" })
@@ -18,6 +20,7 @@ test.describe("체크아웃 및 주문", () => {
   let orderId = ""
   let displayId = ""
   let buyerEmail = ""
+  let orderTotal = NaN
 
   test("고객A 회원가입 후 모의 결제(pp_system_default)로 실제 주문 생성", async ({
     page,
@@ -78,13 +81,14 @@ test.describe("체크아웃 및 주문", () => {
     const countryValues = await countrySelect
       .locator("option")
       .evaluateAll((els) => els.map((o) => o.getAttribute("value") ?? ""))
-    const country =
-      countryValues.find((v) => v.toLowerCase() === cat.countryCode) ??
-      countryValues.find((v) => v.length > 0) ??
-      ""
-    if (country) {
-      await countrySelect.selectOption(country)
+    // 리전 국가(kr)가 아닌 선택지로 억지 결제하지 않는다 — 없으면 실패시킨다
+    const country = countryValues.find(
+      (v) => v.toLowerCase() === cat.countryCode
+    )
+    if (!country) {
+      throw new Error("[E2E] 배송 국가 선택지에 없는 리전 국가: " + cat.countryCode + " / 옵션: " + countryValues.join(","))
     }
+    await countrySelect.selectOption(country)
     await page.getByTestId("submit-address-button").click()
     await page.waitForURL(/step=delivery/)
 
@@ -139,11 +143,13 @@ test.describe("체크아웃 및 주문", () => {
     const cookies = await page.context().cookies()
     const token = cookies.find((c) => c.name === "_medusa_jwt")?.value
     expect(token).toBeTruthy()
-    const res = await getOrderApi(orderId, token!)
+    const res = await getOrderApi(orderId, token!, "id,display_id,total")
     expect(res.ok).toBe(true)
     expect(res.json?.order?.id).toBe(orderId)
     displayId = String(res.json?.order?.display_id ?? "")
     expect(displayId).not.toBe("")
+    orderTotal = Number(res.json?.order?.total)
+    expect(orderTotal).toBeGreaterThan(0)
     expect(errors).toEqual([])
   })
 
@@ -152,10 +158,15 @@ test.describe("체크아웃 및 주문", () => {
   }) => {
     const errors = trackConsoleErrors
     const cat = await discoverCatalog()
-    test.skip(!orderId, "선행 주문 없음")
+    // serial 모드: 선행 test가 실패하면 자동 skip — 도달했다면 주문·금액이 반드시 있다
+    expect(orderId).toMatch(/^order_/)
+    expect(orderTotal).toBeGreaterThan(0)
 
     // 직렬 상태의 로그인 세션에 의존하지 않고 새 컨텍스트에서 buyer로 재로그인한다
-    const ctx = await browser.newContext()
+    const ctx = await browser.newContext({
+      baseURL: e2eEnv.baseURL,
+      locale: "ko-KR",
+    })
     const page = await ctx.newPage()
     const pageErrors = errors(page)
     try {
@@ -185,7 +196,9 @@ test.describe("체크아웃 및 주문", () => {
       expect(await page.getByTestId("product-name").count()).toBeGreaterThan(
         0
       )
-      await expect(page.getByTestId("payment-amount")).toBeVisible()
+      // 가시성만으로는 PASS 불가 — API order.total과 UI 실금액을 대조한다
+      const paidText = await page.getByTestId("payment-amount").textContent()
+      expect(amountOf(paidText)).toBe(orderTotal)
       expect(pageErrors).toEqual([])
     } finally {
       await ctx.close()

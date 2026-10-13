@@ -62,8 +62,12 @@ test.describe("장바구니", () => {
       (v) =>
         v.manage_inventory === true &&
         !v.allow_backorder &&
-        (v.inventory_quantity ?? 0) >= 1
+        (v.inventory_quantity ?? 0) >= 1 &&
+        (v.inventory_quantity ?? 0) <= 5
     )
+    if (!variant) {
+      throw new Error("[E2E] 재고 1~5 시나리오 variant가 없다")
+    }
     const stock = variant.inventory_quantity
 
     // 카트 조작은 주문 완료 전까지 재고를 소모하지 않으므로 반복 실행해도 안전하다

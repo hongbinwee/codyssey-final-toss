@@ -57,9 +57,9 @@ e2e/
 | 재고 초과·품절 | cart.spec.ts, catalog.spec.ts | Store API 거부 단언 + add 버튼 disabled |
 | 고객A register/login | checkout.spec.ts | register-page 폼 → account-page/customer-email |
 | 주소/배송/mock payment | checkout.spec.ts | step=address→delivery→payment→review, **pp_system_default만 허용**(radio 없으면 실패, cart.payment_sessions로 provider 재확인) |
-| 실제 order ID | checkout.spec.ts | /order/{id}/confirmed URL 캡처 → GET /store/orders/{id}와 대조 |
-| 고객 order list/detail | checkout.spec.ts | **새 browser context에서 재로그인** 후 order-card/display_id ↔ order-id 대조 |
-| 고객B 타인 상세 denied·목록 격리 | isolation.spec.ts | API 401/403/404 + UI 404 + no-orders/필터 |
+| 실제 order ID | checkout.spec.ts | /order/{id}/confirmed URL 캡처 → GET /store/orders/{id}와 대조(id·display_id·total) |
+| 고객 order list/detail | checkout.spec.ts | **새 browser context(baseURL+ko-KR)에서 재로그인** 후 order-card/display_id ↔ order-id, payment-amount = API order.total 대조 |
+| 고객B 타인 상세 denied·목록 격리 | isolation.spec.ts | A 귀속 선검증(목록 포함·customer_id 본인) 후 B API 401/403/404 + UI 404 |
 | mobile/desktop, light/dark/system | config projects + ui.spec.ts | 390x844, 1440x900, colorScheme 에뮬레이션 + 실제 theme-select 컨트롤 |
 | 한국어/KRW | ui.spec.ts | html lang ko, ₩/원 + 소수점 없음 |
 | 오류 콘솔 | helpers.ts 전 스펙 | pageerror + console.error 수집 후 빈 배열 단언 |
@@ -81,7 +81,7 @@ e2e/
 
 ## 현재 상태 / 미검증
 
-- **NOT_RUN(kr 기준)**: 한국 리전 seed·02 UI 통합 전. `--list` 수집 42 tests 통과만 확인됐다(SOL 독립 확인). dk/EUR 기준 부분 실행만 mechanics 검증용이며 최종 PASS가 아니다.
+- **NOT_RUN(kr 기준)**: 한국 리전 seed·02 UI 통합 전. `--list` 수집 48 tests(5 files x 3 projects) 통과만 확인됐다. dk/EUR 기준 부분 실행만 mechanics 검증용이며 최종 PASS가 아니다.
 - 주문 소유권 격리: `/store/orders/:id`에 ownership middleware 미적용 시 owner/anonymous/B 모두 200 → isolation.spec.ts 실패가 **기대되는 현재 상태**이며, 01 수정 통합 후 PASS 전환 필수.
 - order.id 대조: cart.complete은 서버 액션이라 브라우저에서 응답을 가로챌 수 없어 confirmed URL의 order.id를 Store API로 재조회한다.
 - DB SELECT 검증: infra 연결 정보 제공 시 SOL/01과 조율 후 추가.

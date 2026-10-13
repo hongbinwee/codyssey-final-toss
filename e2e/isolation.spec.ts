@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test"
 import {
   createOrderForCustomer,
   discoverCatalog,
+  getCustomerApi,
   getOrderApi,
   listOrderIdsApi,
   registerCustomerApi,
@@ -33,6 +34,20 @@ test.describe("주문 소유권 격리", () => {
       countryCode: cat.countryCode,
       variantId,
     })
+    // B 차단 검사의 전제 — A 토큰으로 주문이 실제 A에게 귀속됐는지 먼저 검증한다
+    const meA = await getCustomerApi(a.token)
+    expect(meA.ok, "A /store/customers/me 실패").toBe(true)
+    const customerIdA = meA.json?.customer?.id
+    expect(customerIdA).toBeTruthy()
+    const ownOrder = await getOrderApi(
+      orderA.id,
+      a.token,
+      "id,display_id,customer_id"
+    )
+    expect(ownOrder.ok, "A 본인 주문 조회 실패").toBe(true)
+    expect(ownOrder.json?.order?.customer_id).toBe(customerIdA)
+    const myIds = await listOrderIdsApi(a.token)
+    expect(myIds).toContain(orderA.id)
     customerB = await registerCustomerApi(testEmail("cust-b"), TEST_PASSWORD, {
       first_name: "Customer",
       last_name: "B",

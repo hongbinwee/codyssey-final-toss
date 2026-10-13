@@ -76,5 +76,8 @@ Gate 0: migration, DB SELECT 1, /health·Admin·Storefront HTTP, Store products 
 - 한국 설정 통합 후 정식 Medusa build는 FAIL(exit1): 생성 Graph 타입 갱신 후 seed-korea.ts의 currency_code 좁히기·RegionDTO/StockLocationDTO 대입·undefined 가드 오류가 발견됐다. Admin frontend build는 통과했지만 Backend 완료로 인정하지 않는다. 01에 최소 타입 수정 follow-up Commit을 요청했다.
 - 01 권한·타입 수정·검증 스크립트 Commit을 순차 통합한982963b에서 Commerce 실제 실행 결과22 PASS/0 FAIL/0 SKIP/0 NOT_RUN(exit0). 일반배송3,000원, 상품89,000원·주문합계92,000원, 재고 초과HTTP400, 본인 주문200/목록포함·타인404/목록격리·비로그인401을 확인했다. 같은 KRW Order를 전용 PostgreSQL에서 고객·통화 대조 PASS. 증거 `.local/bootstrap/commerce-integration-result.json`.
 - 후속 정식 Backend build는 새 배송 type 재사용 입력이 string/object 혼합으로 TS2322를 내어 FAIL(exit1). 기존 Graph 타입 오류는 해소됐으며, 01이 공식 type_id 필드로 최소 수정 중이다. Gate2 실제 커머스 검증과 Gate5 빌드 미통과를 구분한다.
+- 작업 중인 02 UI를 메인8000과 분리한 localhost8001에서 읽기 검증했다. 실제 Light/Dark/System 컨트롤·reload유지·OS 테마양방향 반영·한국어문서·홈/상품 가로넘침·브라우저pageerror 검사7개 PASS. 390px Hero 문장 잘림과 KRW가격없는 기존상품 노출은 별도 시각 검증에서 발견하여02수정 요청했다. 스크린샷과 `.local/bootstrap/ui-draft-result.json`에 보존한다.
+- UI draft에서 실제 고객로그인→옵션선택→Cart추가완료→배송입력→일반배송→System 모의결제→주문확인 브라우저 흐름 PASS, pageerror없음. 같은 KRW주문의 DB 고객연결 대조 PASS. `.local/bootstrap/ui-draft-cart-result.json`·`ui-draft-db-result.json`에 보존했다. 작업 중 draft 증거이므로 Gate3/4 최종통합 완료로 대체하지 않는다.
+- 05 UI독립리뷰에서 로그인필수checkout가드 누락·checkout고정흰배경·localStorage읽기실패예외를 발견하여02에전달했다. 실제Header안정된다크CSS는정상으로 확인했다.
 
 로컬 초기 실행 안내는 `LOCAL_SETUP.md`에 기록했다. Gate 2~6은 아직 완료하지 않았다.

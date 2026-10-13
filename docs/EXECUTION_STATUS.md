@@ -80,5 +80,7 @@ Gate 0: migration, DB SELECT 1, /health·Admin·Storefront HTTP, Store products 
 - UI draft에서 실제 고객로그인→옵션선택→Cart추가완료→배송입력→일반배송→System 모의결제→주문확인 브라우저 흐름 PASS, pageerror없음. 같은 KRW주문의 DB 고객연결 대조 PASS. `.local/bootstrap/ui-draft-cart-result.json`·`ui-draft-db-result.json`에 보존했다. 작업 중 draft 증거이므로 Gate3/4 최종통합 완료로 대체하지 않는다.
 - 05 UI독립리뷰에서 로그인필수checkout가드 누락·checkout고정흰배경·localStorage읽기실패예외를 발견하여02에전달했다. 실제Header안정된다크CSS는정상으로 확인했다.
 - 01 Worktree에 작성된 배송 `type_id`/`type` 최소 수정과 동일한 내용을 main에 통합해 정식 `medusa build` 재검증 PASS(exit0): Backend9.92초·Admin29.71초, lint0 errors/28 KRW금액경고. Worker파일은 수정하지 않았으며 후속 Commit과 동일성 대조·이력 정리 예정.
+- 최소 배송 수정 후 현재 `seed-korea` 재실행 exit0. 설치된 공식 upsert-shipping-options 단계에서 type_id가 기존 type 행 재사용에 반영됨을 확인했다. 기존 한국 설정은 추가 생성하지 않았다.
+- 한국어 검색 `기계식`의 기존 `/store/search` HTTP200·2개 hit를 확인했다. hit.document의 KRW min/max/original 가격이89,000/94,000원 및129,000/135,000원으로 실제 포함됐다. `.local/bootstrap/korean-search-result.json`에 보존했다.
 
 로컬 초기 실행 안내는 `LOCAL_SETUP.md`에 기록했다. Gate 2~6은 아직 완료하지 않았다.

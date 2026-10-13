@@ -14,7 +14,7 @@
 |---|---|---|
 | 0 Repository & Bootstrap | SOL, 05 | PASS: Clone·hongbinwee Push dry-run·remote·pnpm10.11.1 설치·DB SELECT1·공식 migration. Backend health200, Store product4개 API200, Storefront /dk 및 /dk/store 브라우저 렌더, Admin emailpass200·/app/orders 대시보드/Products 링크 확인 |
 | 1 Design & Parallel Preparation | SOL, 02 | PASS: DESIGN_SYSTEM.md·기능 인벤토리·파일 소유권, Worker Worktree4개·기능 branch·구체 작업 지시. 모든 Worker 응답/작업 시작 확인 |
-| 2 Commerce & Catalog | 01, 03 | Catalog b051d34·한국 설정8c39396 통합. 전용DB seed·재실행 PASS, API14상품27Variant/KRW·할인·재고 PASS. 소유권 통합·KRW 주문/DB 대조 진행 |
+| 2 Commerce & Catalog | 01, 03 | PASS: Catalog/한국 설정/소유권 통합982963b, 전용DB seed·재실행/API14상품27Variant/KRW·할인·재고, Commerce22/22(skip0)·주문DB고객/통화 대조. 통합build 배송type 수정은 Gate5 잔여 |
 | 3 Storefront UI | 02 | 디자인 MD 기준으로 기존 화면·한국어·테마 작업 진행 |
 | 4 E2E QA | 04 | 최소 테스트 의존성 제공·브라우저 설치·테스트 작성 진행 |
 | 5 Integration & Review | SOL, 05 | 대기 |
@@ -74,5 +74,7 @@ Gate 0: migration, DB SELECT 1, /health·Admin·Storefront HTTP, Store products 
 - 실제 한국 Store API 구매 및 PostgreSQL 대조 PASS: 합성 고객 등록·재로그인, 품목 수량/합계·삭제, 배송·System 결제, 실제 KRW 주문, 본인 주문 목록/상세, 같은 주문의 DB customer_id/currency_code 확인. 증거 `.local/bootstrap/korean-commerce-result.json`. 비로그인·타 고객 차단 및 브라우저 전체 PASS는 별도 남아 있다.
 - 기본 국가 변수를 kr로 바꾼 후 실제 루트 HTTP307 `/kr` 확인.
 - 한국 설정 통합 후 정식 Medusa build는 FAIL(exit1): 생성 Graph 타입 갱신 후 seed-korea.ts의 currency_code 좁히기·RegionDTO/StockLocationDTO 대입·undefined 가드 오류가 발견됐다. Admin frontend build는 통과했지만 Backend 완료로 인정하지 않는다. 01에 최소 타입 수정 follow-up Commit을 요청했다.
+- 01 권한·타입 수정·검증 스크립트 Commit을 순차 통합한982963b에서 Commerce 실제 실행 결과22 PASS/0 FAIL/0 SKIP/0 NOT_RUN(exit0). 일반배송3,000원, 상품89,000원·주문합계92,000원, 재고 초과HTTP400, 본인 주문200/목록포함·타인404/목록격리·비로그인401을 확인했다. 같은 KRW Order를 전용 PostgreSQL에서 고객·통화 대조 PASS. 증거 `.local/bootstrap/commerce-integration-result.json`.
+- 후속 정식 Backend build는 새 배송 type 재사용 입력이 string/object 혼합으로 TS2322를 내어 FAIL(exit1). 기존 Graph 타입 오류는 해소됐으며, 01이 공식 type_id 필드로 최소 수정 중이다. Gate2 실제 커머스 검증과 Gate5 빌드 미통과를 구분한다.
 
 로컬 초기 실행 안내는 `LOCAL_SETUP.md`에 기록했다. Gate 2~6은 아직 완료하지 않았다.

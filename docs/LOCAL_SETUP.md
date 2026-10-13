@@ -50,7 +50,13 @@ Storefront의 `NEXT_PUBLIC_DEFAULT_REGION=kr`을 설정하고 서버를 재시�
 
 ## 검증
 
-현재 원본 기반 Backend의 Medusa 권장 lint와 Storefront의 별도 타입 검사는 통과했다. 최종 한국어 커머스 완료 여부는 통합 후 실제 구매·고객별 주문 격리·PostgreSQL 저장·테마·반응형 검증으로 결정한다.
+한국 Commerce API 검증22개(재고 초과·Cart·배송·System 모의 주문·고객별 주문 격리)는 모두 통과했고 같은 KRW 주문의 PostgreSQL 저장을 대조했다. 한국어 UI 전체 브라우저·테마·반응형과 통합 build는 검증 중이다.
+
+Backend 실행 상태에서 Backend 디렉터리의 검증 스크립트를 실행할 수 있다. 합성 고객·실제 모의 주문을 생성하며 비밀번호는 실행 시 무작위 생성한다. 필수 검사 실패나 미실행이 있으면 종료 코드가 0이 아니다.
+
+```powershell
+pnpm exec medusa exec ./src/scripts/verify-commerce.ts
+```
 
 Storefront 디렉터리:
 
@@ -87,4 +93,4 @@ Playwright 실행 방법은 QA 설정 통합 후 확정한다. 테스트 수집 
 | 모의 결제 | `GET /store/payment-providers?region_id=...`, `POST /store/payment-collections`, `POST /store/payment-collections/:id/payment-sessions` |
 | 주문 완료·조회 | `POST /store/carts/:id/complete`, `GET /store/orders`, `GET /store/orders/:id` |
 
-현재 원본의 주문 상세는 비로그인·다른 고객 조회 차단 테스트에서 실패했다. 인증과 소유권 검사 통합 전에는 고객별 접근 제한을 완료로 간주하지 않는다.
+원본의 주문 ID 기반 비인증 조회에 고객 인증·소유권 middleware를 추가했다. 실제 조회 결과 본인200·비로그인401·다른 고객404를 확인했다. 따라서 주문 확인과 계정 상세를 보려면 해당 주문 고객으로 로그인해야 한다. 한국어 UI의 로그인 필수 구매 흐름과 함께 검증한다.

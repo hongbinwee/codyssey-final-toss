@@ -3,7 +3,6 @@ import {
   addLineItemApi,
   createCartApi,
   discoverCatalog,
-  variantAmounts,
 } from "./utils/api"
 import { amountOf, currencyText, trackConsoleErrors } from "./utils/helpers"
 
@@ -100,24 +99,84 @@ test.describe("상품 탐색", () => {
     const priceEl = container.getByTestId("product-price").first()
     await expect(priceEl).toContainText(currencyText())
 
-    const knownAmounts = variantAmounts(product)
-    const before = amountOf(await priceEl.textContent())
-    expect(knownAmounts).toContain(before)
+    const productOptions = (product.options ?? []) as { id: string }[]
+    const variants = (product.variants ?? []) as {
+      calculated_price?: { calculated_amount?: number }
+      options?: { option_id?: string; value?: string }[]
+      manage_inventory?: boolean
+      allow_backorder?: boolean
+      inventory_quantity?: number
+    }[]
+    const optionGroups = container.getByTestId("product-options")
+    expect(productOptions.length).toBeGreaterThan(1)
+    await expect(optionGroups).toHaveCount(productOptions.length)
 
-    // 첫 옵션 그룹의 다른 값을 선택해 가격이 실제 variant 가격으로 유지/갱신된다
-    const optionGroups = page.getByTestId("product-options")
-    const buttons = optionGroups.first().getByTestId("option-button")
-    if ((await buttons.count()) > 1) {
-      await buttons.nth(1).click()
-      const after = amountOf(await priceEl.textContent())
-      expect(knownAmounts).toContain(after)
-      // variant 가격이 서로 다른 상품이라면 표시 가격도 실제로 바뀐다
-      if (new Set(knownAmounts).size > 1) {
-        await expect
-          .poll(async () => amountOf(await priceEl.textContent()))
-          .not.toBe(before)
+    // API variant의 전체 option 조합을 사용해 실제 선택 가능한 가격 쌍을 찾는다.
+    const candidates = variants.flatMap((variant) => {
+      const amount = variant.calculated_price?.calculated_amount
+      const values: Record<string, string> = {}
+      for (const option of variant.options ?? []) {
+        if (option.option_id && typeof option.value === "string") {
+          values[option.option_id] = option.value
+        }
+      }
+      const isPurchasable =
+        !variant.manage_inventory ||
+        variant.allow_backorder ||
+        (variant.inventory_quantity ?? 0) > 0
+      if (
+        typeof amount !== "number" ||
+        !isPurchasable ||
+        !productOptions.every(
+          (option) => typeof values[option.id] === "string"
+        )
+      ) {
+        return []
+      }
+      return [{ amount, values }]
+    })
+    let pricePair: (typeof candidates)[number][] | undefined
+    for (let i = 0; i < candidates.length; i++) {
+      const other = candidates
+        .slice(i + 1)
+        .find((candidate) => candidate.amount !== candidates[i].amount)
+      if (other) {
+        pricePair = [candidates[i], other]
+        break
       }
     }
+    if (!pricePair) {
+      throw new Error(
+        "[E2E] optioned 상품에 가격이 다른 판매 가능 variant 조합이 없다."
+      )
+    }
+
+    const selectVariant = async (candidate: (typeof candidates)[number]) => {
+      for (let i = 0; i < productOptions.length; i++) {
+        const value = candidate.values[productOptions[i].id]
+        if (value === undefined) {
+          throw new Error(
+            "[E2E] 선택한 variant에 옵션 값이 없다: " + productOptions[i].id
+          )
+        }
+        await optionGroups
+          .nth(i)
+          .getByRole("button", { name: value, exact: true })
+          .click()
+      }
+      await expect
+        .poll(async () => amountOf(await priceEl.textContent()))
+        .toBe(candidate.amount)
+      await expect(page.getByTestId("add-product-button")).toBeEnabled()
+    }
+
+    const [firstVariant, secondVariant] = pricePair
+    await selectVariant(firstVariant)
+    const firstAmount = amountOf(await priceEl.textContent())
+    await selectVariant(secondVariant)
+    const secondAmount = amountOf(await priceEl.textContent())
+    expect(secondAmount).not.toBe(firstAmount)
+
     await expect(page.getByTestId("add-product-button")).toBeEnabled()
     expect(errors).toEqual([])
   })

@@ -1,122 +1,114 @@
 import type { ApiResult } from "../utils/api"
 import { storeApi } from "../utils/api"
+import { e2eEnv } from "../utils/env"
 
 // ============================================================
-// SOL 확정 계약 블록 (04 소유)
-// 리뷰 저장·조회 방식(플러그인 vs 공식 모듈), metadata 스펙 규격,
-// UI testid 계약이 아직 미확정이다. 빈 문자열 값은 "계약 미확정"을
-// 뜻하고, 해당 테스트는 skip이 아니라 명시적 오류로 실패한다.
-// SOL이 API/type 계약을 전달하면 이 상수만 갱신한다.
+// SOL 확정 리뷰 계약 (01 공식 Module 채택)
+// 읽기:
+//   GET /store/products/:id/reviews
+//     ?sort=newest|rating_desc|rating_asc&offset=0&limit=10(max 50)
+//     &variant_id=<exact variant only — 상품 전체와 섞지 않음>
+//   → { reviews:[{id,product_id,variant_id,title,body,rating,
+//       written_at,source:"native"|"amazon"|"synthetic",source_ref,
+//       is_synthetic,verified_purchase}],
+//       count, offset, limit,
+//       summary:{average_rating:null|number, review_count} }
+//   공개 조회는 approved+displayable만 — status 필터 요청은 400 기대.
+//   GET /store/product-review-stats?product_ids=a,b
+//   → { stats:[{product_id,average_rating:null|number,review_count}] }
+//   유효 상품의 리뷰 없음은 review_count=0·average=null을 미리 반환.
+// 쓰기(fixture):
+//   POST /admin/product-reviews/import  (Admin 전용, max100, atomic)
+//   body { reviews:[{product_id,variant_id?,external_review_id,asin?,
+//     parent_asin?,title,body,rating:int 1..5,written_at:ISO,source,
+//     source_ref,is_synthetic,verified_purchase?,status:pending|
+//     approved|flagged,displayable,rights_ref}] }
+//   unique(source, external_review_id) + idempotent. ASIN 자동추정 금지.
+// UI testid (02 지정): review-summary review-count review-average
+//   review-list review-item review-sort review-page-next review-empty
+//   product-review-summary
 // ============================================================
 export const REVIEW_CONTRACT = {
-  // 공개 리뷰 목록 경로 — ":id"는 product_id로 치환한다
-  listPath: "",
-  // 집계(평균·수) 별도 경로 — 없으면 ""로 두고 list에서 재계산한다
-  statsPath: "",
-  // 정렬·페이지 파라미터
-  sortParam: "",
-  sortLatest: "",
-  sortRating: "",
-  pageParam: "",
-  limitParam: "",
-  // 목록 응답 shape
-  itemsField: "",
-  countField: "",
-  avgField: "",
-  // 리뷰 항목 필드
-  ratingField: "",
-  titleField: "",
-  bodyField: "",
-  createdField: "",
-  statusField: "",
-  productField: "",
-  variantField: "", // 계약에 variant 연결이 없으면 "" — 매핑 테스트는 별도 가드로 실패한다
-  sourceField: "", // 실제/합성/외부 출처 구분 필드
-  approvedValue: "",
-  pendingValue: "",
-  // 합성 fixture 주입 — SOL이 지정한 Admin import 경로만 사용한다.
+  listPath: "/store/products/:id/reviews",
+  statsPath: "/store/product-review-stats", // batch: ?product_ids=a,b
+  sortParam: "sort",
+  sortLatest: "newest",
+  sortRating: "rating_desc",
+  sortRatingAsc: "rating_asc",
+  pageParam: "offset",
+  limitParam: "limit",
+  maxLimit: 50,
+  variantParam: "variant_id",
+  itemsField: "reviews",
+  countField: "count",
+  // 리뷰 항목 필드 (공개 DTO에 status·email·ASIN·rights 없음)
+  ratingField: "rating",
+  titleField: "title",
+  bodyField: "body",
+  createdField: "written_at",
+  productField: "product_id",
+  variantField: "variant_id",
+  sourceField: "source",
+  syntheticFlagField: "is_synthetic",
+  // Admin import (fixture 전용 — SOL provision 키를 env로만 제공)
+  seedPath: "/admin/product-reviews/import",
+  approvedValue: "approved",
+  pendingValue: "pending",
+  flaggedValue: "flagged",
+  syntheticSourceValue: "synthetic",
+  // fixture 식별 — isolated env의 QA 전용 상품만 지정한다.
   // main toss3days-* 상품에는 리뷰를 심지 않는다.
-  seedPath: "",
-  fixtureProductA: "", // QA 전용 synthetic 상품 handle 또는 id
-  fixtureProductB: "",
-  fixtureVariantA1: "",
-  fixtureVariantA2: "",
-  // UI testid 계약 (02 확정)
+  fixtureProductA: process.env.E2E_FIXTURE_PRODUCT_A ?? "",
+  fixtureProductB: process.env.E2E_FIXTURE_PRODUCT_B ?? "",
+  fixtureVariantA1: process.env.E2E_FIXTURE_VARIANT_A1 ?? "",
   ui: {
-    section: "",
-    emptyState: "",
-    item: "",
-    sortControl: "",
-    cardStars: "",
-    cardCount: "",
-    syntheticLabel: "",
-    specTable: "",
-    compareTable: "",
+    summary: "review-summary",
+    count: "review-count",
+    average: "review-average",
+    list: "review-list",
+    item: "review-item",
+    sortControl: "review-sort",
+    pageNext: "review-page-next",
+    emptyState: "review-empty",
+    cardSummary: "product-review-summary",
   },
 } as const
 
 const REQUIRED_KEYS: (keyof typeof REVIEW_CONTRACT)[] = [
-  "listPath",
-  "sortParam",
-  "sortLatest",
-  "sortRating",
-  "pageParam",
-  "limitParam",
-  "itemsField",
-  "countField",
-  "ratingField",
-  "createdField",
-  "statusField",
-  "productField",
-  "sourceField",
-  "approvedValue",
-  "pendingValue",
-  "seedPath",
   "fixtureProductA",
   "fixtureProductB",
-]
-
-const REQUIRED_UI_KEYS: (keyof typeof REVIEW_CONTRACT.ui)[] = [
-  "section",
-  "emptyState",
-  "item",
-  "cardStars",
-  "cardCount",
-  "syntheticLabel",
 ]
 
 const missingKeys = (): string[] =>
   REQUIRED_KEYS.filter((k) => !REVIEW_CONTRACT[k])
 
-// 계약이 채워지기 전에는 어떤 리뷰 테스트도 통과로 위장하지 않는다.
+// 읽기 계약은 확정됐다 — fixture 상품 식별만 환경 의존이다.
 export const assertReviewContract = (): void => {
   const missing = missingKeys()
   if (missing.length > 0) {
     throw new Error(
-      "[E2E] 리뷰 API/type 계약 미확정 — SOL 계약 전달 후 REVIEW_CONTRACT 갱신: " +
-        missing.join(", ")
+      "[E2E] 리뷰 fixture 식별 env 미설정 — isolated env provision 후 설정: " +
+        missing.map((k) => "E2E_" + k.replace(/([A-Z])/g, "_$1").toUpperCase()).join(", ")
     )
   }
 }
 
 export const assertReviewUiContract = (): void => {
-  assertReviewContract()
-  const missing = REQUIRED_UI_KEYS.filter((k) => !REVIEW_CONTRACT.ui[k])
-  if (missing.length > 0) {
+  // UI testid는 02가 지정해 확정됐다 — 별도 env 요구 없음.
+}
+
+// Admin import에는 SOL provision의 admin 토큰이 필요하다 — env로만 제공.
+export const assertSeedContract = (): void => {
+  if (!process.env.E2E_ADMIN_TOKEN) {
     throw new Error(
-      "[E2E] 리뷰 UI testid 계약 미확정(02): " + missing.join(", ")
+      "[E2E] E2E_ADMIN_TOKEN 미설정 — Admin import fixture는 isolated env에서만 실행"
     )
   }
 }
 
-// variant 연결은 계약 선택 사항이 될 수 있다 — 없으면 실패가 아니라
-// 계약 공백 보고 항목이므로 전용 가드로 구분한다.
 export const assertVariantContract = (): void => {
-  assertReviewContract()
   if (!REVIEW_CONTRACT.variantField) {
-    throw new Error(
-      "[E2E] 리뷰 계약에 variant 연결 필드가 없다 — 계약 공백으로 SOL에 보고 필요"
-    )
+    throw new Error("[E2E] 리뷰 계약에 variant 필드가 없다")
   }
 }
 
@@ -126,19 +118,31 @@ export type ReviewSort = "latest" | "rating"
 
 export const listPublicReviews = async (
   productId: string,
-  opts: { sort?: ReviewSort; page?: number; limit?: number } = {}
+  opts: {
+    sort?: ReviewSort | "rating_asc"
+    offset?: number
+    limit?: number
+    variantId?: string
+  } = {}
 ): Promise<ApiResult> => {
-  assertReviewContract()
   const c = REVIEW_CONTRACT
   const query: Record<string, string | number | undefined> = {}
   if (opts.sort) {
-    query[c.sortParam] = opts.sort === "latest" ? c.sortLatest : c.sortRating
+    query[c.sortParam] =
+      opts.sort === "latest"
+        ? c.sortLatest
+        : opts.sort === "rating"
+          ? c.sortRating
+          : c.sortRatingAsc
   }
-  if (opts.page !== undefined) {
-    query[c.pageParam] = opts.page
+  if (opts.offset !== undefined) {
+    query[c.pageParam] = opts.offset
   }
   if (opts.limit !== undefined) {
     query[c.limitParam] = opts.limit
+  }
+  if (opts.variantId !== undefined) {
+    query[c.variantParam] = opts.variantId
   }
   return storeApi(c.listPath.replace(":id", productId), { query })
 }
@@ -148,73 +152,90 @@ export const reviewItemsOf = (res: ApiResult): Record<string, unknown>[] => {
   return Array.isArray(items) ? items : []
 }
 
-// 공개 통계 — stats endpoint가 있으면 조회하고, 없으면 목록에서 계산한다.
-// 페이지네이션으로 목록이 잘릴 때 재계산은 금지(평균 왜곡).
+// batch stats — 유효 상품의 리뷰 없음도 stats 항목(count0·avg null)으로
+// 반환되므로 항목 부재는 "유효하지 않은 상품" 신호로 해석한다.
+export const getReviewStatsBatch = async (
+  productIds: string[]
+): Promise<{ product_id: string; average_rating: number | null; review_count: number }[]> => {
+  const res = await storeApi(REVIEW_CONTRACT.statsPath, {
+    query: { product_ids: productIds.join(",") },
+  })
+  if (!res.ok) {
+    throw new Error("[E2E] 리뷰 stats 조회 실패: " + res.status)
+  }
+  const stats = res.json?.stats
+  if (!Array.isArray(stats)) {
+    throw new Error("[E2E] 리뷰 stats 응답에 stats 배열이 없다")
+  }
+  return stats
+}
+
 export const getPublicReviewStats = async (
   productId: string
 ): Promise<{ count: number; average: number | null }> => {
-  assertReviewContract()
-  const c = REVIEW_CONTRACT
-  if (c.statsPath) {
-    const res = await storeApi(c.statsPath.replace(":id", productId))
-    if (!res.ok) {
-      throw new Error("[E2E] 리뷰 stats 조회 실패: " + res.status)
-    }
-    const avg = c.avgField ? res.json?.[c.avgField] : null
-    return {
-      count: Number(res.json?.[c.countField] ?? 0),
-      average: typeof avg === "number" ? avg : null,
-    }
-  }
-  const res = await listPublicReviews(productId)
-  if (!res.ok) {
-    throw new Error("[E2E] 리뷰 목록 조회 실패: " + res.status)
-  }
-  const items = reviewItemsOf(res)
-  const count = Number(res.json?.[c.countField] ?? items.length)
-  if (items.length !== count) {
+  const stats = await getReviewStatsBatch([productId])
+  const entry = stats.find((s) => s.product_id === productId)
+  if (!entry) {
     throw new Error(
-      "[E2E] stats endpoint 없이 페이지네이션된 목록으로 평균을 계산할 수 없다"
+      "[E2E] stats 응답에 해당 product_id가 없다 — 유효 상품에 기본0을 반환하는 계약 위반: " +
+        productId
     )
   }
-  if (count === 0) {
-    return { count: 0, average: null }
-  }
-  const ratings = items
-    .map((item) => item[c.ratingField])
-    .filter((v): v is number => typeof v === "number")
-  if (ratings.length !== items.length) {
-    throw new Error("[E2E] rating 필드가 숫자가 아닌 항목이 있다")
-  }
-  const average = ratings.reduce((a, b) => a + b, 0) / ratings.length
-  return { count, average }
+  return { count: entry.review_count, average: entry.average_rating }
 }
 
-// ---- 합성 fixture ------------------------------------------------------
-// SOL 지정 isolated DB + Admin import 경로에서만 호출한다.
-// main toss3days-* 상품의 실제 리뷰 수는 0을 유지한다.
+// ---- 합성 fixture (Admin import 전용) -----------------------------------
+// isolated env의 QA 전용 상품에만 주입한다. main toss3days-* 상품의
+// 실제 리뷰 수는 0을 유지한다.
 
 export type SyntheticReviewInput = {
   product_id: string
   variant_id?: string
+  external_review_id: string
+  title: string
+  body: string
   rating: number
-  title?: string
-  body?: string
-  status?: string
-  source?: string
-  external_id?: string
-  created_at?: string
+  written_at: string
+  source: string
+  source_ref?: string
+  is_synthetic: boolean
+  status: string
+  displayable: boolean
+  verified_purchase?: boolean
+  asin?: string
+  parent_asin?: string
+  rights_ref?: string
 }
+
+export const adminApi = async (
+  path: string,
+  init: { method?: string; body?: unknown } = {}
+): Promise<ApiResult> => {
+  assertSeedContract()
+  const url = new URL(e2eEnv.backendURL + path)
+  const res = await fetch(url.toString(), {
+    method: init.method ?? "GET",
+    headers: {
+      "content-type": "application/json",
+      authorization: "Bearer " + process.env.E2E_ADMIN_TOKEN,
+    },
+    body: init.body === undefined ? undefined : JSON.stringify(init.body),
+  })
+  const json = await res.json().catch(() => null)
+  return { status: res.status, ok: res.ok, json }
+}
+
+export const importReviews = async (
+  reviews: SyntheticReviewInput[]
+): Promise<ApiResult> =>
+  adminApi(REVIEW_CONTRACT.seedPath, {
+    method: "POST",
+    body: { reviews },
+  })
 
 export const seedSyntheticReview = async (
   input: SyntheticReviewInput
-): Promise<ApiResult> => {
-  assertReviewContract()
-  return storeApi(REVIEW_CONTRACT.seedPath, {
-    method: "POST",
-    body: input,
-  })
-}
+): Promise<ApiResult> => importReviews([input])
 
 // ---- 반품 API ----------------------------------------------------------
 // 설치 코어 확인: @medusajs/medusa@2.21.2 dist/api/store/returns/route.js는

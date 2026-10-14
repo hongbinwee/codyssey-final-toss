@@ -52,7 +52,7 @@ e2e/
 
 - **실행 환경**: 독립 실험 env(backend 9002 / storefront 8002)에서만 실행한다. 공유 prod 9000/8000에는 write 테스트를 실행하지 않는다. 실행 설정은 기존 `E2E_BASE_URL`/`E2E_BACKEND_URL` env를 그대로 사용하며 playwright.config는 변경하지 않는다(SOL 소유).
 - **반품 권한**: 설치 코어 `@medusajs/medusa@2.21.2`의 `POST /store/returns`는 의도적 비인증이다. 01의 프로젝트 middleware 보호를 검증한다. 확정 상태는 익명 401 / 타인 주문 404 / `receive_now=true` 400. `return_shipping.option_id`는 코어 validator 필수 필드이므로 `receive_now` 대조 실험은 `E2E_RETURN_SHIPPING_OPTION_ID`가 제공된 env에서만 유효하다 — 미제공 시 대조 불가를 첨부물로 보고하고 통과로 위장하지 않는다.
-- **리뷰·평점**: `REVIEW_CONTRACT`(helpers/readiness.ts)의 빈 값은 계약 미확정 가드로 동작한다 — 계약 전달 전 리뷰 테스트는 skip이 아니라 명시적 오류로 실패한다. 합성 fixture는 SOL 지정 QA 전용 상품에만 Admin import로 주입하고 main toss3days-* 상품은 실제 리뷰 0을 유지한다(0건 상품은 average=null·count=0·"후기 없음"을 단언). 커버: approved/pending 집계·목록-통계 일치, product/variant 매핑, 최신·별점 정렬과 동률 결정성, 페이지네이션과 범위 초과, 출처·합성 라벨·PII 부재, 카드/상세 표시.
+- **리뷰·평점**: SOL 확정 계약(01 공식 Module) — `GET /store/products/:id/reviews?sort=newest|rating_desc|rating_asc&offset=&limit=(max50)&variant_id=`, `GET /store/product-review-stats?product_ids=`(batch, 유효 상품 기본 count0·avg null), `POST /admin/product-reviews/import`(Admin, unique(source,external_review_id)·atomic·idempotent). 공개 목록은 approved+displayable 고정이며 status 필터는 400. 합성 fixture는 QA 전용 상품(`E2E_FIXTURE_PRODUCT_A`/`B`)에만 `E2E_ADMIN_TOKEN`으로 주입하고 main toss3days-* 상품은 실제 리뷰 0을 유지한다(0건은 average=null·count=0·"후기 없음"). `E2E_FIXTURE_VARIANT_A1`/`B1`이 있으면 정확 variant 귀속·미소속 거부도 검증한다. 필요 env: `E2E_ADMIN_TOKEN`, `E2E_FIXTURE_PRODUCT_A`, `E2E_FIXTURE_PRODUCT_B`, `E2E_FIXTURE_VARIANT_A1`(선택), `E2E_FIXTURE_VARIANT_B1`(선택), `E2E_RETURN_SHIPPING_OPTION_ID`(선택).
 - **회귀 분리**: 신규 변경의 회귀는 기존 51/51 기록과 별도 결과로 보고한다. 병렬 48/51 3건 실패는 원인 미확정의 기존 이슈로 추적한다.
 
 ## 검증 범위 매핑 (태스크 G4-QA-PREP)

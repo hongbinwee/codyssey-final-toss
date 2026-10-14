@@ -25,7 +25,7 @@
 
 ### 1.2 Import 계약 (Admin only — P0에 쓰기 UI 없음)
 
-`POST /admin/product-reviews/import` — body `{reviews:[…]}`, 배치 최대 50건, Admin 인증만. SQL 직접 적재 금지.
+`POST /admin/product-reviews/import` — body `{reviews:[…]}`, 배치 최대 100건(01 Admin schema 동일), Admin 인증만. SQL 직접 적재 금지. (참고: Store 목록 `limit` 상한 50과는 별개 값이다.)
 
 | 필드 | 타입 | 규칙 |
 |---|---|---|
@@ -90,5 +90,5 @@
 
 ## 5. 검증 증거
 
-- `npx jest src/scripts/__tests__/data-contracts.unit.spec.ts` (TEST_TYPE=unit): **17/17 통과** — 전 상품 fixture 커버, unknown=null, variant override(IPS/VA·스위치·소음), 물류 weight 미복사, patch 형태 보존, rating 범위/본문/id/date 검증, rights↔displayable, synthetic⇒is_synthetic 필수, 배치 max 50, (source,external_review_id) 중복 충돌, approved+displayable 투영·비공개 필드 제외, 통계 0건→null, 평균 소수점 2자리.
+- `npx jest src/scripts/__tests__/data-contracts.unit.spec.ts` (TEST_TYPE=unit): **17/17 통과** — 전 상품 fixture 커버, unknown=null, variant override(IPS/VA·스위치·소음), 물류 weight 미복사, patch 형태 보존, rating 범위/본문/id/date 검증, rights↔displayable, synthetic⇒is_synthetic 필수, 배치 max 100, (source,external_review_id) 중복 충돌, approved+displayable 투영·비공개 필드 제외, 통계 0건→null, 평균 소수점 2자리.
 - DB·API·migration 실행 없음. 실제 적재·런타임 검증은 별도 Gate.

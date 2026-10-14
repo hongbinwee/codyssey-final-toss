@@ -67,7 +67,7 @@ export interface ReviewImportItem {
   rights_ref: string | null // 이용조건·라이선스 참조 — 외부 데이터 필수
 }
 
-export const REVIEW_IMPORT_MAX_BATCH = 50
+export const REVIEW_IMPORT_MAX_BATCH = 100 // Admin import 배치 상한 (01 Admin schema 동일). 참고: Store 목록의 limit max 50과는 별개 값이다.
 
 /** Import 아이템 1건의 field-level 검증 — 문제 목록을 반환(비어 있으면 유효). */
 export function validateReviewImportItem(item: ReviewImportItem): string[] {

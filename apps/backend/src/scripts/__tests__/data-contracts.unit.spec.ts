@@ -181,12 +181,12 @@ describe("review import contract", () => {
     ).toEqual([])
   })
 
-  it("caps batch at 50 items", () => {
-    const items = Array.from({ length: 51 }, (_, i) =>
+  it("caps batch at 100 items", () => {
+    const items = Array.from({ length: 101 }, (_, i) =>
       validItem({ external_review_id: "R-" + i })
     )
     const { problems } = validateReviewImportBatch(items)
-    expect(problems).toContain("batch exceeds max 50")
+    expect(problems).toContain("batch exceeds max 100")
   })
 
   it("flags duplicate (source, external_review_id) inside a batch", () => {

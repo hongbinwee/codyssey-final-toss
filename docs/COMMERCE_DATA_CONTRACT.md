@@ -21,11 +21,11 @@
 
 **투영 제외**: `asin`, `parent_asin`, `external_review_id`, `rights_ref`, `status`, `displayable`, 고객 식별자·이메일 등 비공개 데이터. `source_ref`는 공개-safe 내용만.
 
-공개 조회는 `status="approved"` AND `displayable=true`만. client가 pending을 요청할 수 없다. 리뷰 0건은 `average_rating=null` — **0점으로 표시 금지**.
+공개 조회는 `status="approved"` AND `displayable=true`만. client가 pending을 요청할 수 없다. 리뷰 0건은 `average_rating=null` — **0점으로 표시 금지**. 평균 평점은 backend 표준 **소수점 2자리** 반올림(01 메서드와 동일), UI 표시는 toFixed(1) 등 별도 결정.
 
 ### 1.2 Import 계약 (Admin only — P0에 쓰기 UI 없음)
 
-`POST /admin/product-reviews/import` — body `{reviews:[…]}`, 배치 최대 100건, Admin 인증만. SQL 직접 적재 금지.
+`POST /admin/product-reviews/import` — body `{reviews:[…]}`, 배치 최대 50건, Admin 인증만. SQL 직접 적재 금지.
 
 | 필드 | 타입 | 규칙 |
 |---|---|---|
@@ -33,10 +33,11 @@
 | `variant_id` | string? | 지정 시 해당 product 소속이어야 함 |
 | `external_review_id` | string | 필수 — `unique(source, external_review_id)` |
 | `asin` / `parent_asin` | string? | 보존용. 상품 매핑에는 쓰지 않는다 |
-| `title` / `body` | string? / string | body 원문 필수 |
+| `title` | string? | 입력 optional null 허용. 01 model이 text 필수면 '' 저장 또는 model nullable — canonical public은 null 유지 (SOL 결정) |
+| `body` | string | 원문 필수 |
 | `rating` | int 1..5 | 필수 |
 | `written_at` | ISO 8601 | 필수, parse 가능해야 함 |
-| `source` | `"native"\|"amazon"\|"synthetic"` | 출처 채널. synthetic 여부와 직교 |
+| `source` | `"native"\|"amazon"\|"synthetic"` | 출처 채널. `source="synthetic"`이면 `is_synthetic=true` 필수(double-false 금지). 반대 방향(is_synthetic=true인 native)은 허용 |
 | `source_ref` | string? | 원본 참조. 외부 소스(native 외)는 필수 |
 | `is_synthetic` | boolean | 합성/테스트 여부 |
 | `verified_purchase` | boolean? | **출처 사이트의 claim이며 Medusa 구매 인증이 아니다.** 신호 없으면 null |
@@ -89,5 +90,5 @@
 
 ## 5. 검증 증거
 
-- `npx jest src/scripts/__tests__/data-contracts.unit.spec.ts` (TEST_TYPE=unit): **14/14 통과** — 전 상품 fixture 커버, unknown=null, variant override(IPS/VA·스위치·소음), 물류 weight 미복사, patch 형태 보존, rating 범위/본문/id/date 검증, rights↔displayable, (source,external_review_id) 중복 충돌, approved+displayable 투영·비공개 필드 제외, 통계 0건→null.
+- `npx jest src/scripts/__tests__/data-contracts.unit.spec.ts` (TEST_TYPE=unit): **17/17 통과** — 전 상품 fixture 커버, unknown=null, variant override(IPS/VA·스위치·소음), 물류 weight 미복사, patch 형태 보존, rating 범위/본문/id/date 검증, rights↔displayable, synthetic⇒is_synthetic 필수, 배치 max 50, (source,external_review_id) 중복 충돌, approved+displayable 투영·비공개 필드 제외, 통계 0건→null, 평균 소수점 2자리.
 - DB·API·migration 실행 없음. 실제 적재·런타임 검증은 별도 Gate.

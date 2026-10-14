@@ -168,6 +168,27 @@ describe("review import contract", () => {
     )
   })
 
+  it("requires is_synthetic=true when source is synthetic", () => {
+    const bad = validItem({ source: "synthetic", is_synthetic: false })
+    expect(validateReviewImportItem(bad)).toContain(
+      "source=synthetic requires is_synthetic=true"
+    )
+    // 직교 방향은 허용: native 소스도 is_synthetic 플래그 자유
+    expect(
+      validateReviewImportItem(
+        validItem({ source: "native", is_synthetic: true, source_ref: "t", rights_ref: "t" })
+      )
+    ).toEqual([])
+  })
+
+  it("caps batch at 50 items", () => {
+    const items = Array.from({ length: 51 }, (_, i) =>
+      validItem({ external_review_id: "R-" + i })
+    )
+    const { problems } = validateReviewImportBatch(items)
+    expect(problems).toContain("batch exceeds max 50")
+  })
+
   it("flags duplicate (source, external_review_id) inside a batch", () => {
     const a = validItem({ external_review_id: "R-1" })
     const b = validItem({ external_review_id: "R-1" })
@@ -223,12 +244,23 @@ describe("review import contract", () => {
     expect(empty.review_count).toBe(0)
     expect(empty.average_rating).toBeNull()
   })
+
+  it("rounds average to 2 decimals (backend standard)", () => {
+    const pid = "prod_01M4VE6BE9ZB146HJW469S61XF"
+    const items = [
+      validItem({ rating: 5 }),
+      validItem({ rating: 4, external_review_id: "R-8" }),
+      validItem({ rating: 4, external_review_id: "R-9" }),
+    ]
+    // (5+4+4)/3 = 4.333… → 4.33
+    expect(aggregateReviewStats(pid, items).average_rating).toBe(4.33)
+  })
 })
 
 // 타입 버전 고정 — 계약 변경 시 버전 범프 필수.
 describe("contract versions", () => {
   it("pins the draft versions", () => {
-    expect(REVIEW_CONTRACT_VERSION).toBe("review-contract-draft-2")
+    expect(REVIEW_CONTRACT_VERSION).toBe("review-contract-draft-3")
     expect(SPEC_SCHEMA_VERSION).toBe("catalog-spec-v1")
   })
 })

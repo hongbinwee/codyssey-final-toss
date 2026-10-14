@@ -28,7 +28,7 @@
  * - 실측되지 않은 값은 null — 추정 금지. rights 불명이면 displayable=false.
  */
 
-export const REVIEW_CONTRACT_VERSION = "review-contract-draft-2"
+export const REVIEW_CONTRACT_VERSION = "review-contract-draft-3"
 
 /** 출처 채널 — 합성 여부(is_synthetic)와 직교하는 별개 축이다. */
 export type ReviewSource = "native" | "amazon" | "synthetic"
@@ -52,13 +52,13 @@ export interface ReviewImportItem {
   parent_asin?: string | null
 
   // --- 내용 ---
-  title: string | null
+  title: string | null // 입력 optional null. 01 model이 text 필수면 '' 저장하거나 model nullable로 — canonical public은 null 유지 (SOL 결정)
   body: string // 원문 필수
   rating: number // 1..5 정수 필수
   written_at: string // 리뷰 작성일, ISO 8601
 
   // --- 출처/상태 ---
-  source: ReviewSource
+  source: ReviewSource // "synthetic"이면 is_synthetic=true 필수 (double-false 금지)
   source_ref: string | null // 원본 참조 — 공개-safe 내용만
   is_synthetic: boolean
   verified_purchase?: boolean | null // 출처 사이트의 claim, Medusa 인증 아님
@@ -67,7 +67,7 @@ export interface ReviewImportItem {
   rights_ref: string | null // 이용조건·라이선스 참조 — 외부 데이터 필수
 }
 
-export const REVIEW_IMPORT_MAX_BATCH = 100
+export const REVIEW_IMPORT_MAX_BATCH = 50
 
 /** Import 아이템 1건의 field-level 검증 — 문제 목록을 반환(비어 있으면 유효). */
 export function validateReviewImportItem(item: ReviewImportItem): string[] {
@@ -98,6 +98,9 @@ export function validateReviewImportItem(item: ReviewImportItem): string[] {
   }
   if (item.rights_ref == null && item.displayable === true) {
     problems.push("rights_ref unknown => displayable must be false")
+  }
+  if (item.source === "synthetic" && item.is_synthetic !== true) {
+    problems.push("source=synthetic requires is_synthetic=true")
   }
   return problems
 }
@@ -188,7 +191,7 @@ export function toPublicReview(
   }
 }
 
-/** approved + displayable 건만 집계. 0건이면 average=null (0점 표시 금지). */
+/** approved + displayable 건만 집계. 0건이면 average=null (0점 표시 금지). 평균은 backend 표준 소수점 2자리(01 메서드 동일), UI 표시는 toFixed(1) 등 별도. */
 export function aggregateReviewStats(
   product_id: string,
   items: (ReviewImportItem & { id?: string })[]
@@ -206,6 +209,6 @@ export function aggregateReviewStats(
   return {
     product_id,
     review_count: pub.length,
-    average_rating: Math.round((sum / pub.length) * 10) / 10,
+    average_rating: Math.round((sum / pub.length) * 100) / 100,
   }
 }

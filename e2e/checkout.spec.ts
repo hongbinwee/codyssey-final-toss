@@ -256,17 +256,23 @@ test.describe("체크아웃 및 주문", () => {
       await expect(card).toBeVisible()
       await card.getByTestId("order-details-link").click()
 
-      await expect(
-        page.getByTestId("order-details-container")
-      ).toBeVisible()
-      await expect(page.getByTestId("order-id")).toHaveText(displayId)
-      await expect(page.getByTestId("order-email")).toContainText(buyerEmail)
-      expect(await page.getByTestId("product-name").count()).toBeGreaterThan(
-        0
+      const orderDetails = page.getByTestId("order-details-container")
+      await expect(orderDetails).toBeVisible()
+      await expect(orderDetails.getByTestId("order-id")).toHaveText(displayId)
+      await expect(orderDetails.getByTestId("order-email")).toContainText(
+        buyerEmail
       )
-      // 가시성만으로는 PASS 불가 — API order.total과 UI 실금액을 대조한다
-      const paidText = await page.getByTestId("payment-amount").textContent()
-      expect(amountOf(paidText)).toBe(orderTotal)
+      expect(
+        await orderDetails.getByTestId("product-name").count()
+      ).toBeGreaterThan(0)
+
+      // 상세는 PaymentDetails가 아니라 OrderSummary를 렌더링한다.
+      // '합계' 행의 실제 금액을 주문 API total과 대조한다.
+      const totalLabel = orderDetails.getByText("합계", { exact: true })
+      await expect(totalLabel).toBeVisible()
+      const totalAmount = totalLabel.locator("xpath=..").locator("span").nth(1)
+      await expect(totalAmount).toBeVisible()
+      expect(amountOf(await totalAmount.textContent())).toBe(orderTotal)
       expect(pageErrors).toEqual([])
     } finally {
       await ctx.close()

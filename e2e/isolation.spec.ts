@@ -7,7 +7,7 @@ import {
   listOrderIdsApi,
   registerCustomerApi,
 } from "./utils/api"
-import { TEST_PASSWORD, testEmail, trackConsoleErrors } from "./utils/helpers"
+import { TEST_PASSWORD, testEmail } from "./utils/helpers"
 
 // 고객A의 주문을 고객B가 API·UI로 읽을 수 없어야 한다.
 // main에 통합된 주문 소유권 middleware가 owner만 허용하는지 검증한다.
@@ -64,7 +64,27 @@ test.describe("주문 소유권 격리", () => {
   test("UI: 고객B 로그인 상태에서 타인 주문 상세는 404, 목록은 격리", async ({
     page,
   }) => {
-    const errors = trackConsoleErrors(page)
+    const browserErrors: { message: string; locationUrl: string }[] = []
+    const response404Urls: string[] = []
+    page.on("console", (message) => {
+      if (message.type() === "error") {
+        browserErrors.push({
+          message: message.text(),
+          locationUrl: message.location().url,
+        })
+      }
+    })
+    page.on("pageerror", (error) => {
+      browserErrors.push({
+        message: "pageerror: " + error.message,
+        locationUrl: "",
+      })
+    })
+    page.on("response", (response) => {
+      if (response.status() === 404) {
+        response404Urls.push(response.url())
+      }
+    })
     const cat = await discoverCatalog()
 
     await page.goto("/" + cat.countryCode + "/account")
@@ -79,18 +99,10 @@ test.describe("주문 소유권 격리", () => {
 
     const detailPath =
       "/" + cat.countryCode + "/account/orders/details/" + orderA!.id
-    const errorsBeforeDetail = errors.length
     await page.goto(detailPath)
     await expect(
       page.getByText(/page not found|찾을 수 없/i).first()
     ).toBeVisible()
-    // Next streaming notFound can return an HTTP 200 with a 404 page body.
-    // Allow a resource 404 only while navigating to this denied detail page.
-    const detailErrors = errors.splice(errorsBeforeDetail)
-    const unexpectedDetailErrors = detailErrors.filter(
-      (error) => !/console: Failed to load resource.*404/i.test(error)
-    )
-    expect(unexpectedDetailErrors).toEqual([])
 
     await page.goto("/" + cat.countryCode + "/account/orders")
     await expect(page.getByTestId("orders-page-wrapper")).toBeVisible()
@@ -103,6 +115,32 @@ test.describe("주문 소유권 격리", () => {
     } else {
       await expect(page.getByTestId("no-orders-container")).toBeVisible()
     }
-    expect(errors).toEqual([])
+
+    // Prefetch console events can arrive after the next navigation. Permit only
+    // a 404 whose console location and HTTP response both name this exact order.
+    const targetUrl = new URL(detailPath, page.url())
+    const targetOrderUrl = targetUrl.origin + targetUrl.pathname
+    const normalizedUrl = (value: string) => {
+      if (!value) {
+        return ""
+      }
+      try {
+        const url = new URL(value, page.url())
+        return url.origin + url.pathname
+      } catch {
+        return ""
+      }
+    }
+    const response404Paths = new Set(response404Urls.map(normalizedUrl))
+    const unexpectedErrors = browserErrors.filter((error) => {
+      const isResource404 =
+        /Failed to load resource.*404/i.test(error.message)
+      return !(
+        isResource404 &&
+        normalizedUrl(error.locationUrl) === targetOrderUrl &&
+        response404Paths.has(targetOrderUrl)
+      )
+    })
+    expect(unexpectedErrors).toEqual([])
   })
 })

@@ -167,7 +167,7 @@ test.describe("상품 탐색", () => {
       await expect
         .poll(async () => amountOf(await priceEl.textContent()))
         .toBe(candidate.amount)
-      await expect(page.getByTestId("add-product-button")).toBeEnabled()
+      await expect(container.getByTestId("add-product-button")).toBeEnabled()
     }
 
     const [firstVariant, secondVariant] = pricePair
@@ -177,7 +177,7 @@ test.describe("상품 탐색", () => {
     const secondAmount = amountOf(await priceEl.textContent())
     expect(secondAmount).not.toBe(firstAmount)
 
-    await expect(page.getByTestId("add-product-button")).toBeEnabled()
+    await expect(container.getByTestId("add-product-button")).toBeEnabled()
     expect(errors).toEqual([])
   })
 
@@ -209,13 +209,50 @@ test.describe("상품 탐색", () => {
     const cat = await discoverCatalog()
     const product = cat.soldOut
     await page.goto("/" + cat.countryCode + "/products/" + product.handle)
-    const addButton = page.getByTestId("add-product-button")
+    const productOptions = (product.options ?? []) as { id: string }[]
+    const variants = (product.variants ?? []) as {
+      id: string
+      calculated_price?: { calculated_amount?: number }
+      options?: { option_id?: string; value?: string }[]
+    }[]
+    const variant = variants[0]
+    if (!variant) {
+      throw new Error("[E2E] 품절 상품에 variant가 없다.")
+    }
+    const container = page.getByTestId("product-container")
+    const optionGroups = container.getByTestId("product-options")
+    const expectedGroups = variants.length > 1 ? productOptions.length : 0
+    await expect(optionGroups).toHaveCount(expectedGroups)
+    for (let i = 0; i < expectedGroups; i++) {
+      const optionId = productOptions[i].id
+      const value = variant.options?.find(
+        (option) => option.option_id === optionId
+      )?.value
+      if (typeof value !== "string") {
+        throw new Error("[E2E] 품절 variant의 옵션 값이 없다: " + optionId)
+      }
+      await optionGroups
+        .nth(i)
+        .getByRole("button", { name: value, exact: true })
+        .click()
+    }
+    const productPrice = container.getByTestId("product-price").first()
+    const expectedAmount = variant.calculated_price?.calculated_amount
+    if (typeof expectedAmount !== "number") {
+      throw new Error("[E2E] 품절 variant의 API 가격이 없다.")
+    }
+    await expect
+      .poll(async () => amountOf(await productPrice.textContent()))
+      .toBe(expectedAmount)
+
+    const addButton = container.getByTestId("add-product-button")
     await expect(addButton).toBeVisible()
     await expect(addButton).toBeDisabled()
-    await expect(addButton).toContainText(/out of stock|품절|sold out/i)
+    await expect(addButton).toContainText(/품절|out of stock|sold out/i)
 
     const cartId = await createCartApi(cat.region.id)
-    const res = await addLineItemApi(cartId, product.variants[0].id, 1)
+    const res = await addLineItemApi(cartId, variant.id, 1)
     expect(res.ok).toBe(false)
+    expect(res.status).toBe(400)
   })
 })

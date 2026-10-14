@@ -6,25 +6,76 @@ import {
   discoverCatalog,
   updateLineItemApi,
 } from "./utils/api"
-import { trackConsoleErrors } from "./utils/helpers"
+import { amountOf, trackConsoleErrors } from "./utils/helpers"
 
 test.describe("장바구니", () => {
   test("담기 → 수량 변경 → 합계 재계산 → 삭제", async ({ page }) => {
     const errors = trackConsoleErrors(page)
     const cat = await discoverCatalog()
-    const product = cat.simple
+    type ProductFixture = {
+      handle: string
+      options?: { id: string }[]
+      variants: {
+        calculated_price?: { calculated_amount?: number }
+        options?: { option_id?: string; value?: string }[]
+        manage_inventory?: boolean
+        inventory_quantity?: number
+      }[]
+    }
+    const products = [
+      cat.simple as ProductFixture,
+      ...(cat.products as ProductFixture[]),
+    ]
+    const target = products
+      .filter((candidate) => candidate.handle.startsWith("toss3days-"))
+      .flatMap((candidate) =>
+        candidate.variants
+          .filter(
+            (variant) =>
+              typeof variant.calculated_price?.calculated_amount ===
+                "number" &&
+              (!variant.manage_inventory ||
+                (variant.inventory_quantity ?? 0) >= 2)
+          )
+          .map((variant) => ({ product: candidate, variant }))
+      )[0]
+    if (!target) {
+      throw new Error(
+        "[E2E] quantity=2 검증용으로 가격·재고가 충분한 variant fixture가 없다."
+      )
+    }
+    const { product, variant } = target
+    const productOptions = product.options ?? []
+    if (product.variants.length > 1 && productOptions.length === 0) {
+      throw new Error("[E2E] 다중 variant 상품의 옵션 메타데이터가 없다.")
+    }
     await page.goto("/" + cat.countryCode + "/products/" + product.handle)
 
-    const optionGroups = page.getByTestId("product-options")
-    const groupCount = await optionGroups.count()
-    for (let i = 0; i < groupCount; i++) {
-      const buttons = optionGroups.nth(i).getByTestId("option-button")
-      if ((await buttons.count()) > 0) {
-        await buttons.first().click()
+    const productContainer = page.getByTestId("product-container")
+    const optionGroups = productContainer.getByTestId("product-options")
+    const expectedGroups =
+      product.variants.length > 1 ? productOptions.length : 0
+    await expect(optionGroups).toHaveCount(expectedGroups)
+    for (let i = 0; i < expectedGroups; i++) {
+      const optionId = productOptions[i].id
+      const value = variant.options?.find(
+        (option) => option.option_id === optionId
+      )?.value
+      if (typeof value !== "string") {
+        throw new Error("[E2E] quantity=2 variant 옵션 값이 없다: " + optionId)
       }
+      await optionGroups
+        .nth(i)
+        .getByRole("button", { name: value, exact: true })
+        .click()
     }
-
-    await page.getByTestId("add-product-button").click()
+    const productPrice = productContainer.getByTestId("product-price").first()
+    await expect
+      .poll(async () => amountOf(await productPrice.textContent()))
+      .toBe(variant.calculated_price!.calculated_amount)
+    const addButton = productContainer.getByTestId("add-product-button")
+    await expect(addButton).toBeEnabled()
+    await addButton.click()
     // 서버 액션 완료를 카트 쿠키 + Store API로 확인한다
     await expect.poll(() => cartItemCount(page)).toBe(1)
 
@@ -37,19 +88,13 @@ test.describe("장바구니", () => {
     const before = Number(await subtotal.getAttribute("data-value"))
     expect(before).toBeGreaterThan(0)
 
-    // 수량 select는 maxQuantity(재고·10)까지만 허용한다 — 옵션 2가 있을 때만 변경 검증
+    // API에서 재고 2개 이상인 variant를 골랐으므로 quantity=2를 반드시 검증한다.
     const select = page.getByTestId("product-select-button").first()
-    const optionValues = await select
-      .locator("option")
-      .evaluateAll((els) => els.map((o) => o.getAttribute("value") ?? ""))
-    if (optionValues.includes("2")) {
-      await select.selectOption("2")
-      await expect
-        .poll(async () =>
-          Number(await subtotal.getAttribute("data-value"))
-        )
-        .toBe(before * 2)
-    }
+    await expect(select.locator('option[value="2"]')).toHaveCount(1)
+    await select.selectOption("2")
+    await expect
+      .poll(async () => Number(await subtotal.getAttribute("data-value")))
+      .toBe(before * 2)
 
     await page.getByTestId("product-delete-button").click()
     await expect(page.getByTestId("empty-cart-message")).toBeVisible()

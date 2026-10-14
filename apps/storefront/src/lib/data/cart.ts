@@ -5,7 +5,6 @@ import medusaError from "@lib/util/medusa-error"
 import { HttpTypes } from "@medusajs/types"
 import { revalidateTag } from "next/cache"
 import { redirect } from "next/navigation"
-import { retrieveCustomer } from "./customer"
 import {
   getAuthHeaders,
   getCacheOptions,
@@ -399,21 +398,36 @@ export async function placeOrder(cartId?: string) {
     throw new Error("주문할 장바구니를 찾을 수 없습니다.")
   }
 
-  const [customer, authHeaders] = await Promise.all([
-    retrieveCustomer(),
-    getAuthHeaders(),
-  ])
+  const authHeaders = await getAuthHeaders()
+
+  if (!authHeaders.authorization) {
+    throw new Error("로그인한 고객만 주문할 수 있습니다.")
+  }
+
+  const customer = await sdk.client
+    .fetch<{ customer: HttpTypes.StoreCustomer }>("/store/customers/me", {
+      method: "GET",
+      query: { fields: "id" },
+      headers: authHeaders,
+      cache: "no-store",
+    })
+    .then(({ customer }) => customer)
+    .catch(() => null)
 
   if (!customer) {
     throw new Error("로그인한 고객만 주문할 수 있습니다.")
   }
 
   const cart = await sdk.client
-    .fetch<HttpTypes.StoreCartResponse>(
+    .fetch<{
+      cart: HttpTypes.StoreCart & {
+        customer?: Pick<HttpTypes.StoreCustomer, "id">
+      }
+    }>(
       `/store/carts/${encodeURIComponent(id)}`,
       {
         method: "GET",
-        query: { fields: "id,customer_id" },
+        query: { fields: "id,customer.id" },
         headers: { ...authHeaders },
         cache: "no-store",
       }
@@ -427,7 +441,7 @@ export async function placeOrder(cartId?: string) {
     )
   }
 
-  if (cart.customer_id !== customer.id) {
+  if (cart.customer?.id !== customer.id) {
     throw new Error("현재 계정에 연결된 장바구니가 아닙니다.")
   }
 

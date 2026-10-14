@@ -1,7 +1,5 @@
 import React from "react"
 
-import UnderlineLink from "@modules/common/components/interactive-link"
-
 import AccountNav from "../components/account-nav"
 import { HttpTypes } from "@medusajs/types"
 
@@ -25,11 +23,8 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
           <div>
             <h3 className="text-xl-semi mb-4">문의가 필요하세요?</h3>
             <span className="txt-medium">
-              자주 묻는 질문과 답변은 고객센터에서 확인할 수 있어요.
+              고객센터 안내는 현재 제공하지 않습니다.
             </span>
-          </div>
-          <div>
-            <UnderlineLink href="/customer-service">고객센터</UnderlineLink>
           </div>
         </div>
       </div>

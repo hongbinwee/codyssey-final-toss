@@ -5,7 +5,6 @@ import Input from "@modules/common/components/input"
 import { LOGIN_VIEW } from "@modules/account/templates/login-template"
 import ErrorMessage from "@modules/checkout/components/error-message"
 import { SubmitButton } from "@modules/checkout/components/submit-button"
-import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { signup } from "@lib/data/customer"
 
 type Props = {
@@ -80,21 +79,8 @@ const Register = ({ setCurrentView, returnTo }: Props) => {
           data-testid="register-error"
         />
         <span className="text-center text-ui-fg-base text-small-regular mt-6">
-          가입하면 3days 쇼핑의{" "}
-          <LocalizedClientLink
-            href="/content/privacy-policy"
-            className="underline"
-          >
-            개인정보처리방침
-          </LocalizedClientLink>{" "}
-          과{" "}
-          <LocalizedClientLink
-            href="/content/terms-of-use"
-            className="underline"
-          >
-            이용약관
-          </LocalizedClientLink>
-          에 동의하게 됩니다.
+          한국어 로컬 데모용 회원가입입니다.{" "}
+          개인정보처리방침과 이용약관 안내는 제공하지 않습니다.
         </span>
         <SubmitButton className="w-full mt-6" data-testid="register-button">
           가입하기

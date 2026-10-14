@@ -12,8 +12,12 @@ export const metadata: Metadata = {
 
 export default async function Checkout(props: {
   params: Promise<{ countryCode: string }>
+  searchParams: Promise<{ step?: string | string[] }>
 }) {
-  const { countryCode } = await props.params
+  const [{ countryCode }, searchParams] = await Promise.all([
+    props.params,
+    props.searchParams,
+  ])
   const cart = await retrieveCart()
 
   if (!cart) {
@@ -29,6 +33,18 @@ export default async function Checkout(props: {
     redirect(
       `/${countryCode}/account?next=${encodeURIComponent(checkoutPath)}`
     )
+  }
+
+  if (typeof searchParams.step !== "string" || !searchParams.step) {
+    let step: "address" | "delivery" | "payment" = "payment"
+
+    if (!cart.shipping_address?.address_1 || !cart.email) {
+      step = "address"
+    } else if (cart.shipping_methods?.length === 0) {
+      step = "delivery"
+    }
+
+    redirect(`/${countryCode}/checkout?step=${step}`)
   }
 
   return (

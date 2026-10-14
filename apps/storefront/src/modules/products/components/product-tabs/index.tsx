@@ -2,7 +2,6 @@
 
 import Back from "@modules/common/icons/back"
 import FastDelivery from "@modules/common/icons/fast-delivery"
-import Refresh from "@modules/common/icons/refresh"
 
 import Accordion from "./accordion"
 import { HttpTypes } from "@medusajs/types"
@@ -85,28 +84,19 @@ const ShippingInfoTab = () => {
         <div className="flex items-start gap-x-2">
           <FastDelivery />
           <div>
-            <span className="font-semibold">빠른 배송</span>
+            <span className="font-semibold">배송 안내</span>
             <p className="max-w-sm">
-              주문하면 영업일 기준 3~5일 이내에 집에서 편하게 받아보실 수
-              있어요.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-start gap-x-2">
-          <Refresh />
-          <div>
-            <span className="font-semibold">간편한 교환</span>
-            <p className="max-w-sm">
-              사이즈가 마음에 들지 않으면 새 상품으로 교환해드려요.
+              배송 방법과 배송비는 주문서에서 배송지를 입력한 뒤 확인할 수
+              있어요. 이 데모 스토어는 실제 배송을 제공하지 않아요.
             </p>
           </div>
         </div>
         <div className="flex items-start gap-x-2">
           <Back />
           <div>
-            <span className="font-semibold">쉬운 반품</span>
+            <span className="font-semibold">교환·반품·환불</span>
             <p className="max-w-sm">
-              상품을 보내주시면 환불해드려요. 번거롭지 않게 처리해드릴게요.
+              교환·반품·환불 접수는 현재 제공하지 않아요.
             </p>
           </div>
         </div>

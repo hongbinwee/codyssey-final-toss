@@ -23,8 +23,8 @@ export default async function Orders() {
       <div className="mb-8 flex flex-col gap-y-4">
         <h1 className="text-2xl-semi">주문 내역</h1>
         <p className="text-base-regular">
-          지난 주문과 진행 상태를 확인하세요. 필요하면 반품이나 교환도
-          요청할 수 있어요.
+          지난 주문과 진행 상태를 확인하세요. 반품·교환 요청은 현재 제공하지
+          않아요.
         </p>
       </div>
       <div>

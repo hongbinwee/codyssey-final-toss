@@ -44,7 +44,16 @@ e2e/
   checkout.spec.ts       # 회원가입→주소→배송→pp_system_default 결제→order.id 대조→주문 목록/상세 (serial)
   isolation.spec.ts      # 고객B API 401/403/404 + 목록 격리 + UI 404 (serial)
   ui.spec.ts             # 뷰포트 overflow·html lang ko·실제 테마 컨트롤·KRW 0자리·콘솔 오류
+  commerce-readiness.spec.ts  # 반품 권한 negative + 리뷰·평점 읽기(계약 대기). 독립 env(9002/8002) 전용
+  helpers/readiness.ts   # REVIEW_CONTRACT 계약 블록 + 리뷰 조회·fixture·반품 헬퍼
 ```
+
+## commerce-readiness.spec.ts (Shopping Brain 준비 단계)
+
+- **실행 환경**: 독립 실험 env(backend 9002 / storefront 8002)에서만 실행한다. 공유 prod 9000/8000에는 write 테스트를 실행하지 않는다. 실행 설정은 기존 `E2E_BASE_URL`/`E2E_BACKEND_URL` env를 그대로 사용하며 playwright.config는 변경하지 않는다(SOL 소유).
+- **반품 권한**: 설치 코어 `@medusajs/medusa@2.21.2`의 `POST /store/returns`는 의도적 비인증이다. 01의 프로젝트 middleware 보호를 검증한다. 확정 상태는 익명 401 / 타인 주문 404 / `receive_now=true` 400. `return_shipping.option_id`는 코어 validator 필수 필드이므로 `receive_now` 대조 실험은 `E2E_RETURN_SHIPPING_OPTION_ID`가 제공된 env에서만 유효하다 — 미제공 시 대조 불가를 첨부물로 보고하고 통과로 위장하지 않는다.
+- **리뷰·평점**: `REVIEW_CONTRACT`(helpers/readiness.ts)의 빈 값은 계약 미확정 가드로 동작한다 — 계약 전달 전 리뷰 테스트는 skip이 아니라 명시적 오류로 실패한다. 합성 fixture는 SOL 지정 QA 전용 상품에만 Admin import로 주입하고 main toss3days-* 상품은 실제 리뷰 0을 유지한다(0건 상품은 average=null·count=0·"후기 없음"을 단언). 커버: approved/pending 집계·목록-통계 일치, product/variant 매핑, 최신·별점 정렬과 동률 결정성, 페이지네이션과 범위 초과, 출처·합성 라벨·PII 부재, 카드/상세 표시.
+- **회귀 분리**: 신규 변경의 회귀는 기존 51/51 기록과 별도 결과로 보고한다. 병렬 48/51 3건 실패는 원인 미확정의 기존 이슈로 추적한다.
 
 ## 검증 범위 매핑 (태스크 G4-QA-PREP)
 

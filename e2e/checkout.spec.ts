@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer"
 import { expect, test } from "@playwright/test"
 import {
   cartItemCount,
@@ -47,15 +48,50 @@ test.describe("체크아웃 및 주문", () => {
 
     // 2) 상품 담기 — 서버 액션 완료(카트 쿠키+API 항목)까지 기다린 뒤 이동
     await page.goto("/" + cat.countryCode + "/products/" + product.handle)
-    const optionGroups = page.getByTestId("product-options")
-    const groupCount = await optionGroups.count()
-    for (let i = 0; i < groupCount; i++) {
-      const buttons = optionGroups.nth(i).getByTestId("option-button")
-      if ((await buttons.count()) > 0) {
-        await buttons.first().click()
-      }
+    const productOptions = (product.options ?? []) as { id: string }[]
+    const variants = (product.variants ?? []) as {
+      id: string
+      calculated_price?: { calculated_amount?: number }
+      options?: { option_id?: string; value?: string }[]
+      manage_inventory?: boolean
+      allow_backorder?: boolean
+      inventory_quantity?: number
+    }[]
+    const variant = variants.find(
+      (candidate) =>
+        typeof candidate.calculated_price?.calculated_amount === "number" &&
+        (!candidate.manage_inventory ||
+          candidate.allow_backorder ||
+          (candidate.inventory_quantity ?? 0) > 0)
+    )
+    if (!variant) {
+      throw new Error("[E2E] checkout 상품에 판매 가능한 API variant가 없다.")
     }
-    await page.getByTestId("add-product-button").click()
+
+    const productContainer = page.getByTestId("product-container")
+    const optionGroups = productContainer.getByTestId("product-options")
+    const expectedGroups = variants.length > 1 ? productOptions.length : 0
+    await expect(optionGroups).toHaveCount(expectedGroups)
+    for (let i = 0; i < expectedGroups; i++) {
+      const optionId = productOptions[i].id
+      const value = variant.options?.find(
+        (option) => option.option_id === optionId
+      )?.value
+      if (typeof value !== "string") {
+        throw new Error("[E2E] checkout variant의 옵션 값이 없다: " + optionId)
+      }
+      await optionGroups
+        .nth(i)
+        .getByRole("button", { name: value, exact: true })
+        .click()
+    }
+    const productPrice = productContainer.getByTestId("product-price").first()
+    await expect
+      .poll(async () => amountOf(await productPrice.textContent()))
+      .toBe(variant.calculated_price!.calculated_amount)
+    const addButton = productContainer.getByTestId("add-product-button")
+    await expect(addButton).toBeEnabled()
+    await addButton.click()
     await expect.poll(() => cartItemCount(page)).toBe(1)
 
     await page.goto("/" + cat.countryCode + "/cart")
@@ -143,13 +179,39 @@ test.describe("체크아웃 및 주문", () => {
     const cookies = await page.context().cookies()
     const token = cookies.find((c) => c.name === "_medusa_jwt")?.value
     expect(token).toBeTruthy()
-    const res = await getOrderApi(orderId, token!, "id,display_id,total")
+    const res = await getOrderApi(
+      orderId,
+      token!,
+      "id,display_id,customer_id,currency_code,total"
+    )
     expect(res.ok).toBe(true)
-    expect(res.json?.order?.id).toBe(orderId)
-    displayId = String(res.json?.order?.display_id ?? "")
+    const order = res.json?.order
+    expect(order?.id).toBe(orderId)
+    displayId = String(order?.display_id ?? "")
     expect(displayId).not.toBe("")
-    orderTotal = Number(res.json?.order?.total)
+    expect(order?.customer_id).toBeTruthy()
+    expect(order?.currency_code).toBe(cat.currencyCode)
+    orderTotal = Number(order?.total)
     expect(orderTotal).toBeGreaterThan(0)
+    // PostgreSQL 대조용 최소 정보만 저장한다 — 이메일·주소·토큰은 첨부하지 않는다.
+    await test.info().attach("order-diagnostic", {
+      body: Buffer.from(
+        JSON.stringify(
+          {
+            project_name: test.info().project.name,
+            order_id: order.id,
+            display_id: order.display_id,
+            customer_id: order.customer_id,
+            currency_code: order.currency_code,
+            total: order.total,
+          },
+          null,
+          2
+        ),
+        "utf8"
+      ),
+      contentType: "application/json",
+    })
     expect(errors).toEqual([])
   })
 
@@ -163,9 +225,15 @@ test.describe("체크아웃 및 주문", () => {
     expect(orderTotal).toBeGreaterThan(0)
 
     // 직렬 상태의 로그인 세션에 의존하지 않고 새 컨텍스트에서 buyer로 재로그인한다
+    const projectUse = test.info().project.use
     const ctx = await browser.newContext({
       baseURL: e2eEnv.baseURL,
       locale: "ko-KR",
+      viewport: projectUse.viewport,
+      colorScheme: projectUse.colorScheme,
+      isMobile: projectUse.isMobile,
+      hasTouch: projectUse.hasTouch,
+      deviceScaleFactor: projectUse.deviceScaleFactor,
     })
     const page = await ctx.newPage()
     const pageErrors = errors(page)

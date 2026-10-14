@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test"
+import type { Response } from "@playwright/test"
 import {
   createOrderForCustomer,
   discoverCatalog,
@@ -10,9 +11,7 @@ import {
 import { TEST_PASSWORD, testEmail, trackConsoleErrors } from "./utils/helpers"
 
 // 고객A의 주문을 고객B가 API·UI로 읽을 수 없어야 한다.
-// 현재 /store/orders/:id는 소유권 middleware(01 작업) 미적용 상태라
-// owner/anonymous/B 모두 200이 가능하다 — 이 스펙이 실패하는 것이 정상이며,
-// middleware 통합 후 PASS로 전환돼야 한다.
+// main에 통합된 주문 소유권 middleware가 owner만 허용하는지 검증한다.
 test.describe.configure({ mode: "serial" })
 test.describe("주문 소유권 격리", () => {
   let orderA: { id: string; display_id: number | string } | null = null
@@ -79,12 +78,31 @@ test.describe("주문 소유권 격리", () => {
       customerB!.email
     )
 
-    await page.goto(
+    const detailPath =
       "/" + cat.countryCode + "/account/orders/details/" + orderA!.id
+    const detail404Urls: string[] = []
+    const recordDetail404 = (response: Response) => {
+      if (response.status() === 404) {
+        detail404Urls.push(response.url())
+      }
+    }
+    const errorsBeforeDetail = errors.length
+    page.on("response", recordDetail404)
+    try {
+      await page.goto(detailPath)
+      await expect(
+        page.getByText(/page not found|찾을 수 없/i).first()
+      ).toBeVisible()
+    } finally {
+      page.off("response", recordDetail404)
+    }
+    const detailErrors = errors.splice(errorsBeforeDetail)
+    const expected404Errors = detailErrors.filter((error) =>
+      /console: Failed to load resource.*404/i.test(error)
     )
-    await expect(
-      page.getByText(/page not found|찾을 수 없/i).first()
-    ).toBeVisible()
+    expect(detailErrors).toEqual(expected404Errors)
+    expect(expected404Errors.length).toBeGreaterThan(0)
+    expect(detail404Urls.some((url) => url.includes(orderA!.id))).toBe(true)
 
     await page.goto("/" + cat.countryCode + "/account/orders")
     await expect(page.getByTestId("orders-page-wrapper")).toBeVisible()

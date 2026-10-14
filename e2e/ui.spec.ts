@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test"
-import { discoverCatalog } from "./utils/api"
-import { amountOf, trackConsoleErrors } from "./utils/helpers"
+import { cartItemCount, discoverCatalog } from "./utils/api"
+import {
+  amountOf,
+  TEST_PASSWORD,
+  testEmail,
+  trackConsoleErrors,
+} from "./utils/helpers"
 
 test.describe("UI 공통", () => {
   test("뷰포트 렌더링: 가로 스크롤 없이 핵심 화면이 표시된다", async ({
@@ -32,6 +37,89 @@ test.describe("UI 공통", () => {
     const cat = await discoverCatalog()
     await page.goto("/" + cat.countryCode)
     await expect(page.locator("html")).toHaveAttribute("lang", /ko/i)
+  })
+
+  test("게스트 카트에서 체크아웃 로그인 후 안전하게 복귀한다", async ({
+    page,
+  }) => {
+    const errors = trackConsoleErrors(page)
+    const cat = await discoverCatalog()
+    const product = cat.simple
+    const productOptions = (product.options ?? []) as { id: string }[]
+    const variants = (product.variants ?? []) as {
+      calculated_price?: { calculated_amount?: number }
+      options?: { option_id?: string; value?: string }[]
+      manage_inventory?: boolean
+      allow_backorder?: boolean
+      inventory_quantity?: number
+    }[]
+    const variant = variants.find(
+      (candidate) =>
+        typeof candidate.calculated_price?.calculated_amount === "number" &&
+        (!candidate.manage_inventory ||
+          candidate.allow_backorder ||
+          (candidate.inventory_quantity ?? 0) > 0)
+    )
+    if (!variant) {
+      throw new Error("[E2E] 게스트 checkout 상품에 판매 가능한 variant가 없다.")
+    }
+
+    await page.goto(
+      "/" + cat.countryCode + "/products/" + product.handle
+    )
+    const productContainer = page.getByTestId("product-container")
+    const optionGroups = productContainer.getByTestId("product-options")
+    const expectedGroups = variants.length > 1 ? productOptions.length : 0
+    await expect(optionGroups).toHaveCount(expectedGroups)
+    for (let i = 0; i < expectedGroups; i++) {
+      const optionId = productOptions[i].id
+      const value = variant.options?.find(
+        (option) => option.option_id === optionId
+      )?.value
+      if (typeof value !== "string") {
+        throw new Error("[E2E] 게스트 checkout variant 옵션 값이 없다: " + optionId)
+      }
+      await optionGroups
+        .nth(i)
+        .getByRole("button", { name: value, exact: true })
+        .click()
+    }
+    const productPrice = productContainer.getByTestId("product-price").first()
+    await expect
+      .poll(async () => amountOf(await productPrice.textContent()))
+      .toBe(variant.calculated_price!.calculated_amount)
+    const addButton = productContainer.getByTestId("add-product-button")
+    await expect(addButton).toBeEnabled()
+    await addButton.click()
+    await expect.poll(() => cartItemCount(page)).toBe(1)
+
+    await page.goto("/" + cat.countryCode + "/cart")
+    await expect(page.getByTestId("cart-container")).toBeVisible()
+    await page.getByTestId("checkout-button").click()
+
+    const checkoutPath = "/" + cat.countryCode + "/checkout"
+    await page.waitForURL(
+      (url) =>
+        url.pathname === "/" + cat.countryCode + "/account" &&
+        url.searchParams.get("next") === checkoutPath
+    )
+    await expect(page.getByTestId("login-page")).toBeVisible()
+    await page.getByTestId("register-button").click()
+    await expect(page.getByTestId("register-page")).toBeVisible()
+    await expect(page.locator('input[name="returnTo"]')).toHaveValue(
+      checkoutPath
+    )
+    await page.getByTestId("first-name-input").fill("QA")
+    await page.getByTestId("last-name-input").fill("Guest")
+    await page.getByTestId("email-input").fill(testEmail("guest-checkout"))
+    await page.getByTestId("phone-input").fill("010-1234-5678")
+    await page.getByTestId("password-input").fill(TEST_PASSWORD)
+    await page.getByTestId("register-button").click()
+
+    await page.waitForURL((url) => url.pathname === checkoutPath)
+    await expect(page.getByTestId("shipping-first-name-input")).toBeVisible()
+    await expect.poll(() => cartItemCount(page)).toBe(1)
+    expect(errors).toEqual([])
   })
 
   // 02 theme-select 컴포넌트 실제 계약:

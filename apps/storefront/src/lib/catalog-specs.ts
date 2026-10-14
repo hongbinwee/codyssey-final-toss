@@ -38,3 +38,34 @@ export function specRows(productMetadata: unknown, variantMetadata?: unknown): S
   const fields = variant && variant.category === product.category ? { ...product.fields, ...variant.fields } : product.fields
   return definitions[product.category].map(([key, label, unit]) => ({ key, label, value: format(key, fields[key], unit) }))
 }
+
+/** 조건 검색 UI의 카테고리 선택 옵션 — definitions 키와 1:1 대응한다 */
+export const SPEC_CATEGORY_OPTIONS: { value: string; label: string }[] = [
+  { value: "monitor", label: "모니터" },
+  { value: "keyboard", label: "키보드" },
+  { value: "mouse", label: "마우스" },
+  { value: "living", label: "리빙" },
+]
+
+/**
+ * 이미 병합된 스펙 필드 레코드(condition-search 응답의 specs)를 행으로 변환.
+ * 카테고리를 알 수 없거나 정의에 없으면 빈 배열 — 표시할 수 없는 값을 지어내지 않는다.
+ */
+export function specFieldRows(
+  category: string | null | undefined,
+  fields: Record<string, unknown> | null | undefined
+): SpecRow[] {
+  if (!category || !fields) return []
+  const defs = definitions[category]
+  if (!defs) return []
+  return defs.map(([key, label, unit]) => ({
+    key,
+    label,
+    value: format(key, fields[key], unit),
+  }))
+}
+
+/** 필드 값의 표시용 이름 — select 옵션 라벨 등에서 재사용 */
+export function specValueName(value: string): string {
+  return names[value] ?? value
+}

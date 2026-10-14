@@ -6,6 +6,19 @@ import RatingSummary from "../reviews/rating-summary"
 import type { ProductReviewStat } from "@lib/commerce-contracts"
 
 export type ComparisonItem = { product: HttpTypes.StoreProduct; variant: HttpTypes.StoreProductVariant | null; reviewStat?: ProductReviewStat }
+
+// 가격이 확인되지 않는 variant는 재고 조건만으로 "구매 가능"을 주장하지 않는다.
+// 가격이 있을 때만 기존 inventory 규칙(구매 가능/품절)을 적용한다.
+const availabilityText = (variant: HttpTypes.StoreProductVariant | null) => {
+  if (!variant) return "미확인"
+  if (variant.calculated_price?.calculated_amount == null) return "가격 미확인"
+  return !variant.manage_inventory ||
+    variant.allow_backorder ||
+    (variant.inventory_quantity ?? 0) > 0
+    ? "구매 가능"
+    : "품절"
+}
+
 export default function ComparisonTable({ items }: { items: ComparisonItem[] }) {
   const rows = items.map(item => specRows(item.product.metadata, item.variant?.metadata))
   const labels = new Map(rows.flat().map(row => [row.key, row.label]))
@@ -15,8 +28,8 @@ export default function ComparisonTable({ items }: { items: ComparisonItem[] }) 
       <tbody>
         <tr className="border-t border-ui-border-base"><th className="p-3">옵션</th>{items.map(item => <td key={item.product.id} className="p-3" data-testid="comparison-variant">{item.variant?.title ?? "옵션 미선택"}</td>)}</tr>
         <tr className="border-t border-ui-border-base"><th className="p-3">가격</th>{items.map(item => <td key={item.product.id} className="p-3" data-testid="comparison-price">{item.variant?.calculated_price?.calculated_amount != null ? convertToLocale({ amount: item.variant.calculated_price.calculated_amount, currency_code: item.variant.calculated_price.currency_code ?? "krw" }) : "미확인"}</td>)}</tr>
-        <tr className="border-t border-ui-border-base"><th className="p-3">평점 · 후기</th>{items.map(item => <td key={item.product.id} className="p-3"><RatingSummary summary={item.reviewStat} status={item.reviewStat ? "ready" : "error"} size="small" /></td>)}</tr>
-        <tr className="border-t border-ui-border-base"><th className="p-3">구매 가능 여부</th>{items.map(item => <td key={item.product.id} className="p-3">{!item.variant ? "미확인" : !item.variant.manage_inventory || item.variant.allow_backorder || (item.variant.inventory_quantity ?? 0) > 0 ? "구매 가능" : "품절"}</td>)}</tr>
+        <tr className="border-t border-ui-border-base" data-testid="comparison-rating"><th className="p-3">평점 · 후기</th>{items.map(item => <td key={item.product.id} className="p-3"><RatingSummary summary={item.reviewStat} status={item.reviewStat ? "ready" : "error"} size="small" /></td>)}</tr>
+        <tr className="border-t border-ui-border-base"><th className="p-3">구매 가능 여부</th>{items.map(item => <td key={item.product.id} className="p-3" data-testid="comparison-availability">{availabilityText(item.variant)}</td>)}</tr>
         {Array.from(labels).map(([key, label]) => <tr key={key} className="border-t border-ui-border-base" data-spec-key={key}><th className="p-3 text-ui-fg-muted">{label}</th>{items.map((item, index) => <td key={item.product.id} className="p-3">{rows[index].find(row => row.key === key)?.value ?? "미확인"}</td>)}</tr>)}
       </tbody>
     </table>

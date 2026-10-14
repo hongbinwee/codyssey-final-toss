@@ -12,6 +12,12 @@
 | B Backend | PASS(독립DB) | 승인공개리뷰조회/평균·수/정렬·페이징/상품·옵션연결/Admin멱등import 및 mixedbatch쓰기차단. Return익명401·타인404·receive_now정책400. migration3개·ratingCHECK실제검증 |
 | C UI | PASS(독립환경) | 카드/상세평점·리뷰·스펙·미확인·empty/error/retry·합성표시. 재사용비교표·실가격·v_idhistory동기화·이미지fallback, 배송/반품지원안내정정 |
 | D 통합 QA | PASS(생산빌드/worker1) | 신규리뷰51+스펙9+오류복구3+기존Commerce51=114/114,119.8초,fail/skip/flaky0. 타입/Backend·Admin·Next빌드PASS,unit42/42. UI동일주문3개DB고객·KRW·번호·총액대조PASS |
+| E 조건검색 계약 | 구현 반영(문서 동기화) | COMMERCE_DATA_CONTRACT를 01 실제 route/helpers 기준으로 갱신 — 단일 sales channel 제한·조건 allowlist/타입별 operator·같은variant 평가·offset0..10000/limit1..50(기본12)·`in_stock_only` 실제재고 필터·비권위 price/inventory 스냅샷을 반영. 리뷰 `source_ref` query/fragment 위험·리뷰 목록 offset 무상한 한계 기록 유지 |
+| F Backend 조건검색 | 구현·단위/빌드 검증 완료 | route.ts/helpers.ts 코드 존재. 채널 연결 product 1,000개·variant 5,000개 상한을 본문 그래프 조회 전에 검사. helper unit 12/12 PASS, `medusa build` backend·embedded frontend build PASS(기존 lint warning 29, SOL 재검증). HTTP/브라우저 E2E는 Gate H — Docker DB daemon 불가로 미실시 |
+| G 조건검색 UI | 빌드 검증 완료 | storefront 조건검색·선택 컴포넌트 코드 존재. isolated `build-storefront.cjs` Next build PASS(`Compiled successfully`, static pages 6/6, exit0, SOL 보고). `tsc`는 기존 instantsearch/Radix type declaration 오류 잔존 — Next build 통과와 별개로 기록 |
+| H 통합 QA | 미실시(차단) | Playwright `--list` 42 collected(SOL 보고). 실제 HTTP/브라우저 E2E 실행 안 됨 — Docker DB daemon 불가 |
+
+2026-10-15 통합 체크아웃에 condition-search 구현이 도착해 계약 문서를 구현 기준으로 갱신했다. backend는 helper unit 12/12·`medusa build`(embedded frontend 포함) PASS, storefront는 isolated Next build PASS(`Compiled successfully`, static 6/6)·`tsc` 기존 instantsearch/Radix 오류 잔존, E2E는 `--list` 42 collected이나 실제 HTTP/브라우저 실행은 Docker DB daemon 불가로 미실시다(모두 SOL 보고 — 이번 turn은 문서만 갱신).
 
 파일 소유권: 01 backend plugin/리뷰 및 return middleware(본인 Worktree package/lock은 실험만), 02 storefront UI, 03 `docs/COMMERCE_DATA_CONTRACT.md`와 spec contract helper, 04 신규 readiness E2E, 05 저장소 밖 `.local/readiness-spike`와 새 실험DB/독립 검토. SOL은 공통 타입·통합·main package/lock·실행 환경을 관리한다.
 

@@ -52,3 +52,69 @@ export const EMPTY_REVIEW_SUMMARY: ProductReviewSummary = {
   average_rating: null,
   review_count: 0,
 }
+
+// 구조 조건 검색 계약 — POST /store/product-condition-search (01 backend).
+// 요청 필드 이름은 backend route DTO와 동일하게 유지한다.
+
+export type ProductConditionOperator = "eq" | "gte" | "lte" | "contains"
+
+export type ProductCondition = {
+  field: string
+  operator: ProductConditionOperator
+  value: string | number | boolean
+}
+
+export type ConditionSearchRequest = {
+  region_id: string
+  query?: string
+  /** catalog spec category — monitor | keyboard | mouse | living */
+  category?: string
+  conditions: ProductCondition[]
+  /** region 통화 기준 상한 (KRW 등 major 단위) */
+  max_price?: number
+  in_stock_only?: boolean
+  offset?: number
+  limit?: number
+}
+
+/** 응답의 개별 결과 — exact variant까지 반환되어 ?v_id= 연결에 쓴다 */
+export type ConditionSearchResult = {
+  product_id: string
+  /** 매칭은 variant 단위 — 항상 존재 */
+  variant_id: string
+  handle: string
+  title: string
+  thumbnail: string | null
+  variant_title: string
+  sku: string | null
+  /** 해당 variant의 선택 옵션쌍 (예: {title:"스위치", value:"적축"}) */
+  options: { title: string; value: string }[] | null
+  /** 병합된 스펙 필드(product+variant). 없으면 null — "스펙 미확인"으로 표시 */
+  specs: {
+    schema_version: string
+    category: string
+    spec_source: string
+    /** variant 우선 병합 결과. 값 null = 확인 불가 */
+    fields: Record<string, unknown>
+  } | null
+  /** 요청 region_id 기준 가격. calculated_amount가 null이면 "가격 미확인" */
+  price: {
+    calculated_amount: number | null
+    original_amount: number | null
+    currency_code: string
+  } | null
+  inventory: {
+    quantity: number | null
+    manage_inventory: boolean
+    allow_backorder: boolean
+    purchasable: boolean
+  } | null
+}
+
+export type ConditionSearchResponse = {
+  results: ConditionSearchResult[]
+  count: number
+  offset: number
+  limit: number
+  observed_at: string
+}

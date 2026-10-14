@@ -14,6 +14,7 @@ import { Text } from "@modules/common/components/ui"
 import RatingSummary from "@modules/products/components/reviews/rating-summary"
 import Thumbnail from "@modules/products/components/thumbnail"
 import SkeletonProductGrid from "@modules/skeletons/templates/skeleton-product-grid"
+import { CompareToggle } from "../compare-selection"
 import SearchPagination from "./pagination"
 import HitPrice, { HitPricing } from "./price"
 
@@ -87,7 +88,7 @@ const StoreHits = ({ hitsPerPage, currencyCode }: StoreHitsProps) => {
           className="grid grid-cols-2 w-full small:grid-cols-3 medium:grid-cols-4 gap-x-6 gap-y-8"
           data-testid="products-list"
         >
-          {items.map((hit) =>
+          {items.map((hit: ProductHit) =>
             hit.handle &&
             typeof hit[priceAttribute("min_price", currencyCode)] ===
               "number" ? (
@@ -121,6 +122,13 @@ const StoreHits = ({ hitsPerPage, currencyCode }: StoreHitsProps) => {
                     </div>
                   </div>
                 </LocalizedClientLink>
+                <CompareToggle
+                  item={{
+                    handle: hit.handle,
+                    variantId: null,
+                    title: hit.title ?? hit.handle,
+                  }}
+                />
               </li>
             ) : null
           )}

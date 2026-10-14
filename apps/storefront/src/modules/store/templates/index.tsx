@@ -18,6 +18,11 @@ import {
 import StoreHits from "@modules/store/components/store-hits"
 import StoreRefinements from "@modules/store/components/store-refinements"
 import StoreSearchBox from "@modules/store/components/store-search-box"
+import ConditionSearch from "@modules/store/components/condition-search"
+import {
+  CompareSelectionProvider,
+  CompareTray,
+} from "@modules/store/components/compare-selection"
 
 const PRODUCT_LIMIT = 12
 
@@ -46,7 +51,13 @@ const addPriceAvailabilityFilter = (
   }
 }
 
-const StoreTemplate = ({ currencyCode }: { currencyCode: string }) => {
+const StoreTemplate = ({
+  currencyCode,
+  regionId,
+}: {
+  currencyCode: string
+  regionId: string
+}) => {
   const filteredSearchClient = useMemo<AdapterSearchClient>(
     () => ({
       ...searchClient,
@@ -73,22 +84,26 @@ const StoreTemplate = ({ currencyCode }: { currencyCode: string }) => {
       </div>
 
       <div className="flex flex-col small:flex-row small:items-start">
-        <InstantSearch
-          indexName={PRODUCT_INDEX_NAME}
-          searchClient={filteredSearchClient as unknown as SearchClient}
-          routing
-          future={{ preserveSharedStateOnUnmount: true }}
-        >
-          <Configure hitsPerPage={PRODUCT_LIMIT} />
-          <StoreRefinements currencyCode={currencyCode} />
-          <div className="w-full min-w-0">
-            <StoreSearchBox />
-            <StoreHits
-              hitsPerPage={PRODUCT_LIMIT}
-              currencyCode={currencyCode}
-            />
-          </div>
-        </InstantSearch>
+        <CompareSelectionProvider>
+          <InstantSearch
+            indexName={PRODUCT_INDEX_NAME}
+            searchClient={filteredSearchClient as unknown as SearchClient}
+            routing
+            future={{ preserveSharedStateOnUnmount: true }}
+          >
+            <Configure hitsPerPage={PRODUCT_LIMIT} />
+            <StoreRefinements currencyCode={currencyCode} />
+            <div className="w-full min-w-0">
+              <ConditionSearch regionId={regionId} currencyCode={currencyCode} />
+              <StoreSearchBox />
+              <StoreHits
+                hitsPerPage={PRODUCT_LIMIT}
+                currencyCode={currencyCode}
+              />
+            </div>
+          </InstantSearch>
+          <CompareTray />
+        </CompareSelectionProvider>
       </div>
     </div>
   )

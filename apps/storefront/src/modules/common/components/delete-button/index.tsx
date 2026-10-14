@@ -1,6 +1,7 @@
 import { deleteLineItem } from "@lib/data/cart"
 import { Spinner, Trash } from "@medusajs/icons"
 import { clx } from "@modules/common/components/ui"
+import { useRouter } from "next/navigation"
 import { useRef, useState } from "react"
 
 const DeleteButton = ({
@@ -18,6 +19,7 @@ const DeleteButton = ({
   "data-testid"?: string
   onDeletingChange?: (isDeleting: boolean) => void
 }) => {
+  const router = useRouter()
   const [isDeleting, setIsDeleting] = useState(false)
   const deletingRef = useRef(false)
 
@@ -29,18 +31,20 @@ const DeleteButton = ({
     deletingRef.current = true
     setIsDeleting(true)
     onDeletingChange?.(true)
-    await deleteLineItem(id).catch((_err) => {
-      deletingRef.current = false
-      setIsDeleting(false)
-      onDeletingChange?.(false)
-    })
+    await deleteLineItem(id)
+      .then(() => router.refresh())
+      .catch((_err) => {
+        deletingRef.current = false
+        setIsDeleting(false)
+        onDeletingChange?.(false)
+      })
   }
 
   return (
     <div
       className={clx(
         "flex items-center justify-between text-small-regular",
-        className
+        className,
       )}
     >
       <button

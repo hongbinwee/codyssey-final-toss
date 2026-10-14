@@ -39,10 +39,11 @@ export const dedupeImportedReviewsStep = createStep(
           "body",
           "rating",
         ],
-        // The import schema caps the batch at 100 items, so an explicit take
-        // of the requested key count fetches every existing match instead of
-        // relying on the service list default page size.
-        take: externalIds.length,
+        // The filter is a source x external_id cross product, so the take
+        // must cover sources * ids (e.g. the same external id under two
+        // different sources is two rows). Batch size is capped at 100 by the
+        // schema and sources at 3 by the enum, so this bound is exact.
+        take: sources.length * externalIds.length,
       },
     )
     const existingByKey = new Map(

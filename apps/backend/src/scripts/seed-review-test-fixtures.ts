@@ -67,7 +67,13 @@ const seedReviewTestFixtures = async ({ container }: ExecArgs) => {
 
   const existing = await reviewService.listProductReviews(
     { source: "synthetic" },
-    { select: ["external_review_id"] },
+    {
+      select: ["external_review_id"],
+      // Explicit take: the service list default page size would silently
+      // truncate the existing-key set and a re-run would collide instead
+      // of skipping.
+      take: 5000,
+    },
   )
   const existingKeys = new Set(
     existing.map((r) => r.external_review_id).filter(Boolean),
@@ -87,7 +93,7 @@ const seedReviewTestFixtures = async ({ container }: ExecArgs) => {
         rating: fixture.rating,
         written_at: new Date(Date.now() - (i + 1) * 86400000),
         source: "synthetic" as const,
-        source_ref: "seed-review-test-fixtures",
+        source_ref: "https://fixtures.local/seed-review-test-fixtures",
         external_review_id: externalId,
         is_synthetic: true,
         verified_purchase: null,
@@ -112,7 +118,7 @@ const seedReviewTestFixtures = async ({ container }: ExecArgs) => {
       rating: (i % 5) + 1,
       written_at: new Date(Date.now() - (i + 2) * 86400000),
       source: "synthetic",
-      source_ref: "seed-review-test-fixtures",
+      source_ref: "https://fixtures.local/seed-review-test-fixtures",
       external_review_id: externalId,
       is_synthetic: true,
       verified_purchase: null,

@@ -1,4 +1,6 @@
 import { listProducts } from "@lib/data/products"
+import { getProductReviewStats } from "@lib/data/reviews"
+import { EMPTY_REVIEW_SUMMARY } from "@lib/commerce-contracts"
 import { getRegion } from "@lib/data/regions"
 import { HttpTypes } from "@medusajs/types"
 import Product from "../product-preview"
@@ -48,6 +50,10 @@ export default async function RelatedProducts({
     return null
   }
 
+  const reviewStats = await getProductReviewStats(
+    products.map((p) => p.id)
+  )
+
   return (
     <div className="product-page-constraint">
       <div className="flex flex-col items-center text-center mb-16">
@@ -62,7 +68,16 @@ export default async function RelatedProducts({
       <ul className="grid grid-cols-2 small:grid-cols-3 medium:grid-cols-4 gap-x-6 gap-y-8">
         {products.map((product) => (
           <li key={product.id}>
-            <Product region={region} product={product} />
+            <Product
+              region={region}
+              product={product}
+              reviewSummary={
+                reviewStats
+                  ? reviewStats[product.id] ?? EMPTY_REVIEW_SUMMARY
+                  : undefined
+              }
+              reviewSummaryStatus={reviewStats === null ? "error" : "ready"}
+            />
           </li>
         ))}
       </ul>

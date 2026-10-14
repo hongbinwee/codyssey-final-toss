@@ -3,6 +3,8 @@ import { Metadata } from "next"
 import FeaturedProducts from "@modules/home/components/featured-products"
 import Hero from "@modules/home/components/hero"
 import { listCollections } from "@lib/data/collections"
+import { getProductReviewStats } from "@lib/data/reviews"
+import { EMPTY_REVIEW_SUMMARY } from "@lib/commerce-contracts"
 import { getRegion } from "@lib/data/regions"
 import { listProducts } from "@lib/data/products"
 import ProductPreview from "@modules/products/components/product-preview"
@@ -43,6 +45,8 @@ export default async function Home(props: {
     return null
   }
 
+  const reviewStats = await getProductReviewStats(products.map((p) => p.id))
+
   return (
     <>
       <Hero />
@@ -64,7 +68,18 @@ export default async function Home(props: {
             >
               {products.map((product) => (
                 <li key={product.id}>
-                  <ProductPreview product={product} region={region} />
+                  <ProductPreview
+                    product={product}
+                    region={region}
+                    reviewSummary={
+                      reviewStats
+                        ? reviewStats[product.id] ?? EMPTY_REVIEW_SUMMARY
+                        : undefined
+                    }
+                    reviewSummaryStatus={
+                      reviewStats === null ? "error" : "ready"
+                    }
+                  />
                 </li>
               ))}
             </ul>

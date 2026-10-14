@@ -1,4 +1,6 @@
 import { listProducts } from "@lib/data/products"
+import { getProductReviewStats } from "@lib/data/reviews"
+import { EMPTY_REVIEW_SUMMARY } from "@lib/commerce-contracts"
 import { hasRegionPrice } from "@lib/util/get-product-price"
 import { HttpTypes } from "@medusajs/types"
 import { Text } from "@modules/common/components/ui"
@@ -29,6 +31,8 @@ export default async function ProductRail({
     return null
   }
 
+  const reviewStats = await getProductReviewStats(products.map((p) => p.id))
+
   return (
     <div className="content-container py-12 small:py-24">
       <div className="flex justify-between mb-8">
@@ -40,7 +44,17 @@ export default async function ProductRail({
       <ul className="grid grid-cols-2 small:grid-cols-3 medium:grid-cols-4 gap-x-4 gap-y-8">
         {products.map((product) => (
           <li key={product.id}>
-            <ProductPreview product={product} region={region} isFeatured />
+            <ProductPreview
+              product={product}
+              region={region}
+              isFeatured
+              reviewSummary={
+                reviewStats
+                  ? reviewStats[product.id] ?? EMPTY_REVIEW_SUMMARY
+                  : undefined
+              }
+              reviewSummaryStatus={reviewStats === null ? "error" : "ready"}
+            />
           </li>
         ))}
       </ul>

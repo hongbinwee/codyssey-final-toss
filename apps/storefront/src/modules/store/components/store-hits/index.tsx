@@ -5,9 +5,12 @@ import { useEffect, useRef } from "react"
 import { useHits, useInstantSearch } from "react-instantsearch"
 
 import { priceAttribute } from "@lib/search-client"
+import { EMPTY_REVIEW_SUMMARY } from "@lib/commerce-contracts"
+import useProductReviewStats from "@lib/hooks/use-product-review-stats"
 import useSearchSettled from "@lib/hooks/use-search-settled"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { Text } from "@modules/common/components/ui"
+import RatingSummary from "@modules/products/components/reviews/rating-summary"
 import Thumbnail from "@modules/products/components/thumbnail"
 import SkeletonProductGrid from "@modules/skeletons/templates/skeleton-product-grid"
 import SearchPagination from "./pagination"
@@ -30,6 +33,11 @@ const StoreHits = ({ hitsPerPage, currencyCode }: StoreHitsProps) => {
   const { items } = useHits<ProductHit>()
   const { status, error, indexUiState } = useInstantSearch()
   const { isSearching, hasNoResultsYet } = useSearchSettled()
+
+  // 검색 인덱스에 후기 필드가 없으므로 상품 ID 기준으로 한 번만 배치 조회한다
+  const reviewStats = useProductReviewStats(
+    items.map((hit: ProductHit) => hit.objectID).filter(Boolean)
+  )
 
   const { page, ...refinements } = indexUiState
   const currentPage = page ?? 1
@@ -95,6 +103,17 @@ const StoreHits = ({ hitsPerPage, currencyCode }: StoreHitsProps) => {
                       >
                         {hit.title}
                       </Text>
+                      {reviewStats.status === "error" ? (
+                        <RatingSummary status="error" size="small" />
+                      ) : reviewStats.status === "ready" ? (
+                        <RatingSummary
+                          summary={
+                            reviewStats.map[hit.objectID] ??
+                            EMPTY_REVIEW_SUMMARY
+                          }
+                          size="small"
+                        />
+                      ) : null}
                       <HitPrice hit={hit} currencyCode={currencyCode} />
                     </div>
                   </div>

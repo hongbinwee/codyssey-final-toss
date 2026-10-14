@@ -1,4 +1,6 @@
 import { listProductsWithSort } from "@lib/data/products"
+import { getProductReviewStats } from "@lib/data/reviews"
+import { EMPTY_REVIEW_SUMMARY } from "@lib/commerce-contracts"
 import { getRegion } from "@lib/data/regions"
 import { OptionValueIds } from "@lib/util/product-option-filters"
 import ProductPreview from "@modules/products/components/product-preview"
@@ -70,6 +72,8 @@ export default async function PaginatedProducts({
 
   const totalPages = Math.ceil(count / PRODUCT_LIMIT)
 
+  const reviewStats = await getProductReviewStats(products.map((p) => p.id))
+
   return (
     <>
       <ul
@@ -79,7 +83,16 @@ export default async function PaginatedProducts({
         {products.map((p) => {
           return (
             <li key={p.id}>
-              <ProductPreview product={p} region={region} />
+              <ProductPreview
+                product={p}
+                region={region}
+                reviewSummary={
+                  reviewStats
+                    ? reviewStats[p.id] ?? EMPTY_REVIEW_SUMMARY
+                    : undefined
+                }
+                reviewSummaryStatus={reviewStats === null ? "error" : "ready"}
+              />
             </li>
           )
         })}

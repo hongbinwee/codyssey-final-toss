@@ -7,6 +7,7 @@ import {
 } from "./utils/api"
 import { trackConsoleErrors } from "./utils/helpers"
 import { e2eEnv } from "./utils/env"
+import { getReviewStatsBatch } from "./helpers/readiness"
 
 // ============================================================
 // 조건 검색 → 비교 → 구매 (TDD RED — 01 endpoint / 02 UI 머지 전)
@@ -71,6 +72,17 @@ const resultsOf = (res: ApiResult): any[] => {
         JSON.stringify(j)?.slice(0, 300)
     )
   }
+  // envelope 계약: count·offset·limit·observed_at (확정 DTO)
+  expect(typeof j?.count, "count가 없다").toBe("number")
+  // count는 조건 매치 총량 — 현 페이지 크기보다 작을 수 없다
+  expect(j.count).toBeGreaterThanOrEqual(arr.length)
+  expect(typeof j?.offset, "offset이 없다").toBe("number")
+  expect(typeof j?.limit, "limit이 없다").toBe("number")
+  expect(typeof j?.observed_at, "observed_at이 없다").toBe("string")
+  expect(
+    Number.isNaN(Date.parse(j.observed_at)),
+    "observed_at이 날짜가 아니다: " + j.observed_at
+  ).toBe(false)
   return arr
 }
 
@@ -188,6 +200,39 @@ test.describe("조건 검색 API", () => {
     expect(results.length).toBeGreaterThan(0)
     for (const r of results) {
       assertResultShape(r)
+    }
+
+    // 결과의 sku·variant_title·options·가격은 동일 상품의 Product API
+    // variant와 정확히 일치해야 한다 — 검색 결과가 별도 데이터로 번짐 방지
+    const catAll = await discoverCatalog()
+    const variantMap = new Map<
+      string,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      { product: any; variant: any }
+    >()
+    for (const p of catAll.products as StoreProduct[]) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const v of (p.variants ?? []) as any[]) {
+        variantMap.set(v.id, { product: p, variant: v })
+      }
+    }
+    for (const r of results) {
+      const hit = variantMap.get(String(r.variant_id))
+      expect(
+        hit,
+        "카탈로그에 없는 variant_id가 결과에 있다: " + r.variant_id
+      ).toBeTruthy()
+      expect(hit!.product.id).toBe(r.product_id)
+      expect(r.sku).toBe(hit!.variant.sku)
+      expect(r.variant_title).toBe(hit!.variant.title)
+      expect(priceOf(r)).toBe(
+        hit!.variant.calculated_price?.calculated_amount
+      )
+      // result.options는 해당 variant의 실제 옵션값을 담아야 한다
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const o of (hit!.variant.options ?? []) as any[]) {
+        expect(JSON.stringify(r.options)).toContain(JSON.stringify(o.value))
+      }
     }
 
     const qhdIds = (qhd.variants ?? []).map((v: StoreProduct) => v.id)
@@ -470,29 +515,53 @@ test.describe("조건 검색 UI 흐름", () => {
       Number(va.calculated_price.calculated_amount).toLocaleString("ko-KR")
     )
 
-    // 결과 링크는 상세로 가며 v_id로 정확한 variant를 지정한다
-    const target = items
-      .filter({ has: page.locator('a[href*="toss3days-monitor-27-qhd"]') })
-      .first()
-    await expect(target).toBeVisible()
-    const href = await target.locator("a").first().getAttribute("href")
-    expect(href).toContain("v_id=")
-    const vId = new URL(href!, e2eEnv.baseURL).searchParams.get("v_id")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const variantIds = (qhd.variants ?? []).map((v: any) => v.id)
-    expect(variantIds).toContain(vId)
+    // 결과 링크는 상세로 가며 v_id로 정확한 variant를 지정한다 —
+    // VA 결과 카드로 진입해 상세가 그 variant를 선택하는지 검증한다
+    const target = vaResult.locator("a").first()
+    const href = await target.getAttribute("href")
+    expect(href).toContain("/products/toss3days-monitor-27-qhd")
+    expect(href).toContain("v_id=" + va.id)
 
-    await target.locator("a").first().click()
+    await target.click()
     await page.waitForURL(/\/products\/toss3days-monitor-27-qhd/)
-    expect(page.url()).toContain("v_id=" + vId)
+    expect(page.url()).toContain("v_id=" + va.id)
     const container = page.getByTestId("product-container")
     await expect(container.getByTestId("product-title")).toContainText(
       "27인치 QHD"
     )
-    // 리뷰 평균·목록 — 상세의 리뷰 영역이 렌더된다
+    // 선택된 variant의 옵션·가격·머지 스펙이 상세에 반영된다
+    const optionGroup = container.getByTestId("product-options")
     await expect(
-      page.locator('section[aria-labelledby="product-reviews-heading"]')
-    ).toBeVisible()
+      optionGroup.getByRole("button", { name: "VA", exact: true })
+    ).toHaveClass(/border-ui-border-interactive/)
+    await expect(
+      container.getByTestId("product-price").first()
+    ).toContainText(
+      Number(va.calculated_price.calculated_amount).toLocaleString("ko-KR")
+    )
+    await expect(
+      page.getByTestId("product-specs").locator('[data-spec-key="panel"]')
+    ).toHaveText("VA")
+    await expect(
+      optionGroup.getByRole("button", { name: "IPS", exact: true })
+    ).not.toHaveClass(/border-ui-border-interactive/)
+
+    // 리뷰 요약 — stats API의 평균·수와 상세 표시가 일치한다
+    const statsEntry = (await getReviewStatsBatch([qhd.id])).find(
+      (s) => s.product_id === qhd.id
+    )
+    expect(statsEntry, "stats 응답에 해당 상품이 없다").toBeTruthy()
+    const summaryBox = page.getByTestId("product-review-summary")
+    if (statsEntry!.review_count > 0) {
+      await expect(
+        summaryBox.getByTestId("review-count")
+      ).toContainText(String(statsEntry!.review_count))
+      await expect(
+        summaryBox.getByTestId("review-average")
+      ).toHaveText(statsEntry!.average_rating!.toFixed(1))
+    } else {
+      await expect(page.getByTestId("review-empty")).toBeVisible()
+    }
     await expect(page.getByTestId("review-list")).toBeVisible()
     expect(errors).toEqual([])
   })
@@ -645,10 +714,24 @@ test.describe("조건 검색 UI 흐름", () => {
       (v: any) => v.metadata?.specs?.fields?.panel === "va"
     )
 
-    await page.goto(
-      "/" + cat.countryCode + "/products/" + qhd.handle + "?v_id=" + va.id
-    )
+    // 직접 URL 진입이 아니라 실제 검색 결과 카드 클릭에서 시작한다
+    await openSearchForm(page, cat.countryCode)
+    await page.getByTestId("condition-category").selectOption("monitor")
+    await page.getByTestId("condition-search-submit").click()
+    const items = page.getByTestId("condition-search-result")
+    await expect(items.first()).toBeVisible()
+    const vaCard = items
+      .filter({ has: page.locator('a[href*="v_id=' + va.id + '"]') })
+      .first()
+    await expect(vaCard, "VA variant 결과 카드가 없다").toBeVisible()
+    await vaCard.locator("a").first().click()
+    await page.waitForURL(/\/products\/toss3days-monitor-27-qhd/)
+    expect(page.url()).toContain("v_id=" + va.id)
+
     const container = page.getByTestId("product-container")
+    await expect(
+      container.getByTestId("add-product-button")
+    ).toBeEnabled()
     await container.getByTestId("add-product-button").click()
 
     // 서버 액션 완료를 카트 항목 수 폴링으로 기다린다
@@ -668,10 +751,33 @@ test.describe("조건 검색 UI 흐름", () => {
     const cartId = cookies.find((c) => c.name === "_medusa_cart_id")!.value
     const cart = await storeApi("/store/carts/" + cartId)
     const line = cart.json?.cart?.items?.[0]
+    // 검색 결과 variant가 cart line으로 정확히 전달된다
     expect(
       line?.variant_id ?? line?.variant?.id,
       "cart line이 선택한 VA variant가 아니다"
     ).toBe(va.id)
+    expect(
+      line?.product_id ?? line?.variant?.product_id,
+      "cart line의 product_id가 결과 상품과 다르다"
+    ).toBe(qhd.id)
+    expect(
+      line?.variant?.sku ?? line?.variant_sku,
+      "cart line의 SKU가 결과 variant와 다르다"
+    ).toBe(va.sku)
+    // unit_price는 선택 variant의 계산가와 같아야 한다
+    expect(Number(line?.unit_price)).toBe(
+      Number(va.calculated_price.calculated_amount)
+    )
+
+    // 대조: 같은 조건의 condition-search 결과 가격과도 일치한다
+    const res = await conditionSearch({
+      region_id: cat.region.id,
+      category: "monitor",
+    })
+    expect(res.ok).toBe(true)
+    const vaResult = resultsOf(res).find((r) => r.variant_id === va.id)
+    expect(vaResult, "검색 결과에 VA variant가 없다").toBeTruthy()
+    expect(Number(line.unit_price)).toBe(priceOf(vaResult))
     expect(errors).toEqual([])
   })
 

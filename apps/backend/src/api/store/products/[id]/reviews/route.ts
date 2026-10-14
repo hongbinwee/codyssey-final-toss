@@ -13,6 +13,7 @@ import {
   listStoreProductReviewsParams,
   publicReviewFields,
   reviewSortOrders,
+  sanitizePublicSourceRef,
 } from "./validators"
 
 /**
@@ -105,7 +106,7 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
       rating: review.rating,
       written_at: review.written_at,
       source: review.source,
-      source_ref: review.source_ref || null,
+      source_ref: sanitizePublicSourceRef(review.source_ref),
       is_synthetic: review.is_synthetic,
       verified_purchase: review.verified_purchase ?? null,
     })),

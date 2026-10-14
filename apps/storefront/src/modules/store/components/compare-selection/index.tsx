@@ -122,7 +122,7 @@ export const CompareTray = () => {
   return (
     <div
       data-testid="compare-tray"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-ui-border-base bg-ui-bg-base/95 backdrop-blur"
+      className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 border-t border-ui-border-base bg-ui-bg-base/95 backdrop-blur small:bottom-0"
     >
       <div className="content-container flex items-center gap-x-4 gap-y-2 py-3 flex-wrap">
         <span

@@ -1,10 +1,12 @@
 import { z } from "@medusajs/framework/zod"
 
+export const MAX_REVIEW_OFFSET = 10_000
+
 export const listStoreProductReviewsParams = z.object({
   sort: z
     .enum(["newest", "rating_desc", "rating_asc"])
     .default("newest"),
-  offset: z.coerce.number().int().min(0).default(0),
+  offset: z.coerce.number().int().min(0).max(MAX_REVIEW_OFFSET).default(0),
   limit: z.coerce.number().int().min(1).max(50).default(10),
   variant_id: z.string().min(1).optional(),
 }).strict()
@@ -33,3 +35,28 @@ export const reviewSortOrders = {
   rating_desc: { rating: "DESC", written_at: "DESC", id: "ASC" },
   rating_asc: { rating: "ASC", written_at: "DESC", id: "ASC" },
 } as const
+
+export const sanitizePublicSourceRef = (
+  sourceRef: string | null | undefined
+): string | null => {
+  if (!sourceRef) {
+    return null
+  }
+
+  try {
+    const url = new URL(sourceRef)
+    if (
+      (url.protocol !== "http:" && url.protocol !== "https:") ||
+      url.username ||
+      url.password
+    ) {
+      return null
+    }
+
+    url.search = ""
+    url.hash = ""
+    return url.toString()
+  } catch {
+    return null
+  }
+}

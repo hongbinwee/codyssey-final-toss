@@ -271,6 +271,7 @@ test.describe("리뷰·평점", () => {
         displayable: boolean
         day: number
         variant_id?: string
+        source_ref?: string
       }): SyntheticReviewInput => ({
         product_id: args.product_id,
         variant_id: args.variant_id,
@@ -280,7 +281,7 @@ test.describe("리뷰·평점", () => {
         rating: args.rating,
         written_at: new Date(Date.UTC(2026, 0, args.day)).toISOString(),
         source: SEED_SOURCE,
-        source_ref: SEED_REF,
+        source_ref: args.source_ref ?? SEED_REF,
         is_synthetic: true,
         status: args.status,
         displayable: args.displayable,
@@ -298,6 +299,16 @@ test.describe("리뷰·평점", () => {
             day: VISIBLE_RATINGS.length - i,
           })
         ),
+        mk({
+          product_id: productA!.id,
+          tag: "source-ref-query",
+          rating: 4,
+          status: "approved",
+          displayable: true,
+          day: VISIBLE_RATINGS.length + 1,
+          source_ref:
+            "https://example.invalid/qa-fixture?source_marker=qa-query-marker#qa-fragment-marker",
+        }),
         // A: 비공개 대조군
         ...HIDDEN_PLAN.map((s, i) =>
           mk({
@@ -503,7 +514,7 @@ test.describe("리뷰·평점", () => {
       expect(collected.length).toBe(expectedCount)
       expect(reportedTotal).toBe(expectedCount)
 
-      // 범위 초과 — 빈 배열 또는 400을 허용하되 5xx·성공+데이터는 실패
+      // 현재 공개 계약의 최대 offset은 10000이다.
       const out = await listPublicReviews(productA!.id, {
         offset: 9999,
         limit,
@@ -514,6 +525,11 @@ test.describe("리뷰·평점", () => {
       } else {
         expect(out.status).toBe(400)
       }
+      const excessive = await listPublicReviews(productA!.id, {
+        offset: 10001,
+        limit,
+      })
+      expect(excessive.status).toBe(400)
     })
 
     test("합성 리뷰는 source/is_synthetic으로 구분되고 개인정보가 없다", async () => {
@@ -525,6 +541,14 @@ test.describe("리뷰·평점", () => {
         expect(item[c.sourceField]).toBe(SEED_SOURCE)
         expect(item[c.syntheticFlagField]).toBe(true)
       }
+      const sourceRefReview = items.find(
+        (item) =>
+          item[c.titleField] ===
+          seedTitle("source-ref-query") + "-" + projectSuffix
+      )
+      expect(sourceRefReview?.source_ref).toBe(SEED_REF)
+      expect(JSON.stringify(sourceRefReview)).not.toContain("qa-query-marker")
+      expect(JSON.stringify(sourceRefReview)).not.toContain("qa-fragment-marker")
       // 공개 DTO에 ASIN·rights·개인정보 필드가 없어야 한다
       const serialized = JSON.stringify(items)
       expect(serialized).not.toMatch(/[a-z0-9._%+-]+@[a-z0-9.-]+.[a-z]{2,}/i)
@@ -634,7 +658,12 @@ test.describe("리뷰·평점", () => {
       const card = page.locator('a[href*="/products/' + productA!.handle + '"]').filter({ has: page.getByTestId("product-wrapper") })
       const cardSummary = card.getByTestId(c.ui.summary)
       await expect(cardSummary).toBeVisible()
-      await expect(cardSummary).toContainText(String(expectedCount))
+      await expect(cardSummary.getByTestId(c.ui.average)).toHaveText(
+        expectedAvg.toFixed(1)
+      )
+      await expect(cardSummary.getByTestId(c.ui.count)).toHaveText(
+        `(${expectedCount})`
+      )
       // 상세 — 요약(평균·수)·목록·항목·합성 표시가 보인다
       await page.goto("/" + cat.countryCode + "/products/" + productA!.handle)
       const detailReviews = page.locator('section[aria-labelledby="product-reviews-heading"]')

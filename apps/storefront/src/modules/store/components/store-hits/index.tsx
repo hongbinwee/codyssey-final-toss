@@ -7,6 +7,7 @@ import { useHits, useInstantSearch } from "react-instantsearch"
 import { priceAttribute } from "@lib/search-client"
 import { EMPTY_REVIEW_SUMMARY } from "@lib/commerce-contracts"
 import useProductReviewStats from "@lib/hooks/use-product-review-stats"
+import useProductSpecs from "@lib/hooks/use-product-specs"
 import useSearchSettled from "@lib/hooks/use-search-settled"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { Text } from "@modules/common/components/ui"
@@ -38,6 +39,7 @@ const StoreHits = ({ hitsPerPage, currencyCode }: StoreHitsProps) => {
   const reviewStats = useProductReviewStats(
     items.map((hit: ProductHit) => hit.objectID).filter(Boolean)
   )
+  const specs = useProductSpecs(items.map((hit: ProductHit) => hit.objectID).filter(Boolean))
 
   const { page, ...refinements } = indexUiState
   const currentPage = page ?? 1
@@ -103,6 +105,7 @@ const StoreHits = ({ hitsPerPage, currencyCode }: StoreHitsProps) => {
                       >
                         {hit.title}
                       </Text>
+                      {specs.status === "error" ? <p className="text-xs text-ui-fg-muted">스펙 미조회</p> : specs.map[hit.objectID]?.some(row => row.value !== "미확인") && <p className="text-xs leading-5 text-ui-fg-muted" data-testid="product-spec-summary">{specs.map[hit.objectID].filter(row => row.value !== "미확인").slice(0, 3).map(row => row.value).join(" · ")}</p>}
                       {reviewStats.status === "error" ? (
                         <RatingSummary status="error" size="small" />
                       ) : reviewStats.status === "ready" ? (

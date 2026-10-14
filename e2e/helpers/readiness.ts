@@ -91,10 +91,17 @@ export const assertReviewUiContract = (): void => {
 
 // Admin import에는 SOL provision의 admin 토큰이 필요하다 — env로만 제공.
 export const assertSeedContract = (): void => {
+  assertReadinessEnvironment()
   if (!process.env.E2E_ADMIN_TOKEN) {
     throw new Error(
       "[E2E] E2E_ADMIN_TOKEN 미설정 — Admin import fixture는 isolated env에서만 실행"
     )
+  }
+}
+
+export const assertReadinessEnvironment = (): void => {
+  if (e2eEnv.backendURL !== "http://localhost:9002" || e2eEnv.baseURL !== "http://localhost:8002") {
+    throw new Error("[E2E] Readiness writes require the isolated review environment on 9002/8002")
   }
 }
 
@@ -241,9 +248,11 @@ export const seedSyntheticReview = async (
 export const createReturnApi = (
   body: unknown,
   token?: string
-): Promise<ApiResult> =>
-  storeApi("/store/returns", {
+): Promise<ApiResult> => {
+  assertReadinessEnvironment()
+  return storeApi("/store/returns", {
     method: "POST",
     token,
     body,
   })
+}

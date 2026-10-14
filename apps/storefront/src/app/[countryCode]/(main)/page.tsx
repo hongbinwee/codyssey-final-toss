@@ -32,7 +32,7 @@ export default async function Home(props: {
   const { response } = await listProducts({
     queryParams: {
       limit: 12,
-      fields: "*variants.calculated_price",
+      fields: "*variants.calculated_price,+metadata",
     },
     countryCode,
   }).catch(() => ({ response: { products: [] } }))

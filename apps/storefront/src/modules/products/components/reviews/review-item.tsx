@@ -30,7 +30,7 @@ const toSafeHttpUrl = (value?: string | null): string | null => {
   }
   try {
     const url = new URL(value)
-    return url.protocol === "https:" || url.protocol === "http:"
+    return (url.protocol === "https:" || url.protocol === "http:") && !url.username && !url.password
       ? url.toString()
       : null
   } catch {
@@ -67,10 +67,9 @@ const ReviewItem = ({ review }: ReviewItemProps) => {
       </p>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ui-fg-muted">
         <time dateTime={review.written_at}>{formatDate(review.written_at)}</time>
-        {/* 구매 인증은 우리 스토어의 구매 확인일 때만 표시한다.
-            외부 수집 리뷰의 verified 표시와 혼동하지 않기 위함 */}
-        {review.verified_purchase === true && review.source === "native" && (
-          <Badge color="green">구매 인증</Badge>
+        {/* Import stores the source's claim, not a Medusa order verification. */}
+        {review.verified_purchase === true && !isSynthetic && (
+          <Badge color="green">원본 구매 표시</Badge>
         )}
         {sourceBadge &&
           (sourceUrl ? (

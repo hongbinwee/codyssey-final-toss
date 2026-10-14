@@ -1,0 +1,71 @@
+import { test, expect } from "@playwright/test"
+import { discoverCatalog, storeApi } from "./utils/api"
+import { trackConsoleErrors } from "./utils/helpers"
+
+test.describe("구조화 스펙과 비교", () => {
+  test("상품 API의 스펙과 선택한 variant의 패널을 상세에서 정확히 표시한다", async ({ page }) => {
+    const catalog = await discoverCatalog()
+    const res = await storeApi("/store/products", { query: { handle: "toss3days-monitor-27-qhd", region_id: catalog.region.id, fields: "id,handle,metadata,*variants,*variants.calculated_price,*variants.options" } })
+    expect(res.ok).toBe(true)
+    const product = res.json.products[0]
+    expect(product.metadata.specs.fields.panel).toBeNull()
+    expect(product.metadata.specs.fields.refresh_hz).toBe(144)
+    const ips = product.variants.find((v: any) => v.metadata?.specs?.fields.panel === "ips")
+    const va = product.variants.find((v: any) => v.metadata?.specs?.fields.panel === "va")
+    expect(ips).toBeTruthy()
+    expect(va).toBeTruthy()
+    const errors = trackConsoleErrors(page)
+    await page.goto(`/kr/products/${product.handle}?v_id=${ips.id}`)
+    const specs = page.getByTestId("product-specs")
+    await expect(specs.locator('[data-spec-key="panel"]')).toHaveText("IPS")
+    await expect(specs.locator('[data-spec-key="refresh_hz"]')).toHaveText("144 Hz")
+    await expect(specs.locator('[data-spec-key="usb_c"]')).toHaveText("미확인")
+    await page.getByTestId("product-options").getByRole("button", { name: "VA", exact: true }).click()
+    await expect(specs.locator('[data-spec-key="panel"]')).toHaveText("VA")
+    expect(new URL(page.url()).searchParams.get("v_id")).toBe(va.id)
+    await page.evaluate(id => {
+      const url = new URL(window.location.href)
+      url.searchParams.set("v_id", id)
+      window.history.pushState(null, "", url.toString())
+    }, ips.id)
+    await expect(specs.locator('[data-spec-key="panel"]')).toHaveText("IPS")
+    await expect(page.getByTestId("product-options").getByRole("button", { name: "IPS", exact: true })).toHaveClass(/border-ui-border-interactive/)
+    await page.goBack()
+    await expect(specs.locator('[data-spec-key="panel"]')).toHaveText("VA")
+    await expect(page.getByTestId("product-container").getByTestId("product-price").first()).toContainText(Number(va.calculated_price.calculated_amount).toLocaleString("ko-KR"))
+    expect(errors).toEqual([])
+  })
+
+  test("비교표는 실제 선택 variant 가격·스펙을 쓰고 가로 넘침이 없다", async ({ page }) => {
+    const cat = await discoverCatalog()
+    const res = await storeApi("/store/products", { query: { "handle[0]": "toss3days-monitor-24-fhd", "handle[1]": "toss3days-monitor-27-qhd", region_id: cat.region.id, fields: "id,handle,*variants,*variants.calculated_price" } })
+    expect(res.ok).toBe(true)
+    const fhd = res.json.products.find((p: any) => p.handle === "toss3days-monitor-24-fhd")
+    const qhd = res.json.products.find((p: any) => p.handle === "toss3days-monitor-27-qhd")
+    const first = fhd.variants[0]
+    const second = qhd.variants.find((v: any) => v.metadata?.specs?.fields.panel === "va")
+    expect(second).toBeTruthy()
+    const errors = trackConsoleErrors(page)
+    await page.goto(`/kr/compare?products=${fhd.handle},${qhd.handle}&variants=${first.id},${second.id}`)
+    const table = page.getByTestId("comparison-table")
+    await expect(table).toBeVisible()
+    const prices = table.getByTestId("comparison-price")
+    await expect(prices.nth(0)).toContainText(Number(first.calculated_price.calculated_amount).toLocaleString("ko-KR"))
+    await expect(prices.nth(1)).toContainText(Number(second.calculated_price.calculated_amount).toLocaleString("ko-KR"))
+    await expect(table.locator('tr[data-spec-key="panel"]').getByRole("cell").nth(1)).toHaveText("VA")
+    await expect(table.getByTestId("comparison-variant").nth(1)).toHaveText(second.title)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
+    expect(errors).toEqual([])
+  })
+
+  test("검색 카드 스펙은 Product ID 배치 조회 결과이며 없는 스펙은 정상 빈 상태다", async ({ page }) => {
+    const errors = trackConsoleErrors(page)
+    await page.goto("/kr/store")
+    await page.getByTestId("store-search-input").fill("데일리 24인치 FHD 모니터")
+    const card = page.locator('a[href*="/products/toss3days-monitor-24-fhd"]').filter({ has: page.getByTestId("product-wrapper") })
+    await expect(card.getByTestId("product-spec-summary")).toContainText("24 인치")
+    await page.goto("/kr/products/qa-fixture-a-" + test.info().project.name)
+    await expect(page.getByTestId("product-specs")).toContainText("확인된 스펙이 없어요.")
+    expect(errors).toEqual([])
+  })
+})

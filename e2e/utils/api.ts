@@ -207,9 +207,9 @@ export const discoverCatalog = (): Promise<CatalogPicks> => {
     const optioned =
       korean.find(
         (p) =>
-          (p?.options?.length ?? 0) > 0 &&
+          (p?.options?.length ?? 0) > 1 &&
           variantsOf(p).length > 1 &&
-          purchasableVariants(p).length > 0
+          new Set(purchasableVariants(p).map((v) => v.calculated_price?.calculated_amount)).size > 1
       ) ?? null
     const soldOut =
       korean.find(

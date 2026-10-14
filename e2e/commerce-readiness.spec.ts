@@ -9,6 +9,7 @@ import { TEST_PASSWORD, testEmail, trackConsoleErrors } from "./utils/helpers"
 import {
   REVIEW_CONTRACT,
   assertSeedContract,
+  assertReadinessEnvironment,
   assertVariantContract,
   createReturnApi,
   fixtureKey,
@@ -20,6 +21,7 @@ import {
 } from "./helpers/readiness"
 import type { SyntheticReviewInput } from "./helpers/readiness"
 import { storeApi } from "./utils/api"
+assertReadinessEnvironment()
 
 // 이 스펙은 독립 실험 환경(backend 9002 / storefront 8002)에서만 실행한다.
 // 공유 prod 9000/8000에는 write 테스트를 절대 실행하지 않는다.
@@ -640,6 +642,7 @@ test.describe("리뷰·평점", () => {
       await expect(detailReviews.getByTestId(c.ui.count)).toContainText(
         String(expectedCount)
       )
+      await expect(detailReviews.getByTestId(c.ui.average)).toHaveText(expectedAvg.toFixed(1))
       // 첫 페이지는 최신순 기본 — 첫 항목은 가장 최근 written_at의 제목이다
       const firstItems = page.getByTestId(c.ui.item)
       await expect(firstItems.first()).toBeVisible()

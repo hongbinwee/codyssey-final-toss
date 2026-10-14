@@ -42,7 +42,6 @@ class ProductReviewModuleService extends MedusaService({
     const totals = new Map<string, { sum: number; count: number }>()
     const PAGE_SIZE = 1000
     let skip = 0
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       const reviews = await this.listProductReviews(
         {

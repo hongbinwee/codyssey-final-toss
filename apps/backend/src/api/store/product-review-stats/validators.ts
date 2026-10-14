@@ -1,4 +1,4 @@
-import { z } from "zod"
+import { z } from "@medusajs/framework/zod"
 
 export const listStoreProductReviewStatsParams = z.object({
   product_ids: z.string().min(1),

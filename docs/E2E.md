@@ -55,6 +55,19 @@ e2e/
 - **리뷰·평점**: SOL 확정 계약(01 공식 Module) — `GET /store/products/:id/reviews?sort=newest|rating_desc|rating_asc&offset=&limit=(max50)&variant_id=`, `GET /store/product-review-stats?product_ids=`(batch, 유효 상품 기본 count0·avg null), `POST /admin/product-reviews/import`(Admin, unique(source,external_review_id)·atomic·idempotent). 공개 목록은 approved+displayable 고정이며 status 필터는 400. 합성 fixture는 QA 전용 상품(`E2E_FIXTURE_PRODUCT_A`/`B`)에만 `E2E_ADMIN_TOKEN`으로 주입하고 main toss3days-* 상품은 실제 리뷰 0을 유지한다(0건은 average=null·count=0·"후기 없음"). `E2E_FIXTURE_VARIANT_A1`/`B1`이 있으면 정확 variant 귀속·미소속 거부도 검증한다. 필요 env: `E2E_ADMIN_TOKEN`, `E2E_FIXTURE_PRODUCT_A`, `E2E_FIXTURE_PRODUCT_B`, `E2E_FIXTURE_VARIANT_A1`(선택), `E2E_FIXTURE_VARIANT_B1`(선택), `E2E_RETURN_SHIPPING_OPTION_ID`(선택).
 - **회귀 분리**: 신규 변경의 회귀는 기존 51/51 기록과 별도 결과로 보고한다. 병렬 48/51 3건 실패는 원인 미확정의 기존 이슈로 추적한다.
 
+### 2026-10-14 통합 검증
+
+독립 `toss3days_review_spike_20261014`, Backend9002·Storefront8002에서 실행한다. 이번 신규51건은 기존Commerce51건과 다른 테스트다. 전체최종범위는 기존Commerce51 + 리뷰·반품51 + 스펙/비교9 + 리뷰실패복구/원본표시3 =114건, QA worker1개. 최종 결과는 EXECUTION_STATUS.md에 기록한다.
+
+- 리뷰fixture는 프로젝트별 qa-fixture-a/b 상품에21개 공개리뷰와비공개리뷰를관리자import로주입한다. 원본URL은 https://example.invalid/qa-fixture. 실제고객리뷰가아니며 UI에테스트표시.
+- 평균은소수점2자리계약과대조하고카드/상세1자리표시도확인. status쿼리400,ASIΝ/rights/개인정보키비공개,Product/Variant귀속·동률정렬·전페이지·재import·mixedbatch원자성확인.
+- 설치Medusa core bodyvalidator는customreturnauth보다먼저실행될수있다. 유효한요청shape로익명401/타인404를확인한다. receive_now는400+정책message를확인하며 없는배송옵션에의한400과구분한다. 실제반품완료/환불은범위밖.
+- 상품/옵션스펙·가격비교·unknown·검색카드·모바일가로넘침,IPS→VA 및 v_id deep link확인.
+- review-states.spec.ts는브라우저응답intercept로503→재시도·외부원본구매표시·출처link를검증한다. DB에가짜외부리뷰를주입하지않는다.
+- 옵션가격회귀fixture는옵션2개이상+판매가능variant의서로다른가격을명시해상품조회순서에의존하지않는다.
+
+확정결과JSON/log는공개저장소밖 .local/readiness-spike, screenshots/traces는gitignore된 test-results에보존한다. 환경·auth값을출력/커밋하지않는다. 공유DB에migration/seed를실행하지않는다.
+
 ## 검증 범위 매핑 (태스크 G4-QA-PREP)
 
 | 요구 흐름 | 위치 | 방법 |

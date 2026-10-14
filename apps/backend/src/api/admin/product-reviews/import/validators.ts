@@ -1,4 +1,4 @@
-import { z } from "zod"
+import { z } from "@medusajs/framework/zod"
 
 // Epoch lower bound: known external corpora (e.g. Amazon reviews) reach back
 // to the mid-1990s, so anything before 1970 is the true invalid range.

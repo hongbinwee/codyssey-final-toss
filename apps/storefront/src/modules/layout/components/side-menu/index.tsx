@@ -15,6 +15,7 @@ import { Locale } from "@lib/data/locales"
 const SideMenuItems = [
   { name: "홈", href: "/", testId: "home-link" },
   { name: "상품", href: "/store", testId: "store-link" },
+  { name: "모니터 비교", href: "/compare?products=toss3days-monitor-24-fhd,toss3days-monitor-27-qhd", testId: "compare-link" },
   { name: "내 쇼핑", href: "/account", testId: "account-link" },
   { name: "장바구니", href: "/cart", testId: "cart-link" },
 ]

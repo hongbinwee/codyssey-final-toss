@@ -1,94 +1,71 @@
-# COMMERCE_DATA_CONTRACT — 리뷰·스펙 데이터 계약 (proposed)
+# Commerce 데이터 계약
 
-- 작성자: 03 DEVIN · Catalog & Data
-- 작성일: 2026-10-14 · 기준: worktree `.worktrees/catalog-data` @ work/catalog-data (33c85fd)
-- 상태: **proposed**. SOL 확정 전 계약 초안. 스키마/모델/migration/API 확정은 01 단독 소유, storefront 직접 편집은 하지 않는다.
+2026-10-14. 리뷰는 Medusa 2.21.2 공식 Module 확장 방식으로 구현했다. Product·Variant·Pricing·Inventory·Cart·Order core를 재사용한다. 실제 API validator/workflow가 기준이며 중복 review validator는 제거했다.
 
-## 1. 리뷰 계약 (SOL 확정 표준 반영)
+## 리뷰 읽기
 
-구현 타입·검증·투영 헬퍼: `apps/backend/src/scripts/review-import-contract.ts`
-(`REVIEW_CONTRACT_VERSION = "review-contract-draft-2"`), 단위 테스트 `__tests__/data-contracts.unit.spec.ts`.
+| 경로 | 계약 |
+| --- | --- |
+| `GET /store/products/:id/reviews` | sort=newest/rating_desc/rating_asc, offset>=0, limit=1..50(기본10), 선택variant_id. status 등 미지원 쿼리400. |
+| `GET /store/product-review-stats?product_ids=id1,id2` | 최대100 ID, `{stats:[{product_id,average_rating,review_count}]}`. 유효한 무리뷰 상품은 평균null·수0. |
 
-### 1.1 읽기 API (01이 실구현 — 여기는 계약만)
+Publishable key의 판매 채널에 속한 published 상품만 조회한다. 무효/비공개/채널외 상품404, 키·채널 정보 없으면400. Variant는 해당 Product 소속이어야 한다. variant 필터는 그 옵션 리뷰만 목록·집계에 포함한다.
 
-| API | 형태 |
-|---|---|
-| `GET /store/products/:id/reviews` | `?sort=newest\|rating_desc\|rating_asc&offset=0&limit=10`(limit max 50), `variant_id` 지정 시 **그 exact variant 리뷰만**(상품 전체와 섞지 않음). 미지정 시 상품 전체(모든 variant) 리뷰. |
-| `GET /store/product-review-stats` | `?product_ids=a,b,c` batch → `{stats:[{product_id, average_rating, review_count}]}`. 유효한 상품은 리뷰 0건이어도 `review_count:0, average_rating:null`로 채운다. |
+공개 조건은 status=approved AND displayable=true. 목록은 `{reviews,count,offset,limit,summary:{average_rating,review_count}}`. 공개 DTO는 id,product_id,variant_id,title,body,rating,written_at,source,source_ref,is_synthetic,verified_purchase 12필드다. ASIN·외부ID·권리·moderation·고객ID는 비공개. title 미입력은 저장빈문자열/공개null. 평균소수점2자리/UI1자리. 모든 정렬의 최종 키는 고유id.
 
-응답 `reviews[]` 원소(public projection):
-`{id, product_id, variant_id, title, body, rating, written_at, source, source_ref, is_synthetic, verified_purchase}`
+제목·본문은 문자열로 표시한다. 자동 PII 삭제는 없으므로 적재 담당자가 원문 개인정보·공개권리를 검수한다. 원본 URL은 공개 가능한 http(s) 참조이며 user/password를 허용하지 않는다.
 
-**투영 제외**: `asin`, `parent_asin`, `external_review_id`, `rights_ref`, `status`, `displayable`, 고객 식별자·이메일 등 비공개 데이터. `source_ref`는 공개-safe 내용만.
+## 관리자 Import
 
-공개 조회는 `status="approved"` AND `displayable=true`만. client가 pending을 요청할 수 없다. 리뷰 0건은 `average_rating=null` — **0점으로 표시 금지**. 평균 평점은 backend 표준 **소수점 2자리** 반올림(01 메서드와 동일), UI 표시는 toFixed(1) 등 별도 결정.
+`POST /admin/product-reviews/import`, Medusa 관리자 인증, `{reviews:[...]}` 최대100건. 고객/order 없이 외부 리뷰를 적재한다. SQL 직접적재를 기준으로 삼지 않는다.
 
-### 1.2 Import 계약 (Admin only — P0에 쓰기 UI 없음)
+| 필드 | 입력/기본값 |
+| --- | --- |
+| product_id | 필수, 존재하는 Medusa Product ID. ASIN 자동추정 금지. |
+| variant_id | 선택/null, 해당 Product 소속 검증. |
+| external_review_id | 필수1..255자, `(source,external_review_id)` 멱등 키. |
+| asin / parent_asin | 선택/null, 원본 매핑 보존용. |
+| title | 선택/null, 최대200자. |
+| body | 필수1..5000자. |
+| rating | 정수1..5, API와 product_review CHECK 검증. |
+| written_at | 1970-01-01 이상·현재 이하, ISO8601 UTC 권장. |
+| source | native / amazon / synthetic. |
+| source_ref | 선택/null, 값이 있으면 실제 http(s) URL·credentials 금지. |
+| is_synthetic | 기본false, source=synthetic이면 항상true. |
+| verified_purchase | 선택/null, 출처의 구매 표시이며 Medusa 주문 인증이 아님. |
+| status | 기본pending, pending/approved/flagged. |
+| displayable | 기본false. amazon 공개true에는 rights_ref 필수. |
+| rights_ref | 선택/null, 공개 권리/이용조건 근거. |
 
-`POST /admin/product-reviews/import` — body `{reviews:[…]}`, 배치 최대 100건(01 Admin schema 동일), Admin 인증만. SQL 직접 적재 금지. (참고: Store 목록 `limit` 상한 50과는 별개 값이다.)
+전체 Product/Variant 검증→중복검사→module service 생성 순서다. 같은 키의 Product/Variant/title/body/rating이 같으면 skipped, 다르면400 conflict로 거부하고 덮어쓰지 않는다. 검증실패 혼합배치는 저장하지 않는다. DB unique가 동시 중복저장도 차단하지만 경쟁하는 동일키 import의 성공재시도는 보장하지 않는다. 배치를 순차 실행한다. Import는 write-once이며 moderation 수정 UI/API는 범위 밖이다.
 
-| 필드 | 타입 | 규칙 |
-|---|---|---|
-| `product_id` | string `prod_*` | 필수, 명시적. ASIN 자동 추정 매핑 금지 |
-| `variant_id` | string? | 지정 시 해당 product 소속이어야 함 |
-| `external_review_id` | string | 필수 — `unique(source, external_review_id)` |
-| `asin` / `parent_asin` | string? | 보존용. 상품 매핑에는 쓰지 않는다 |
-| `title` | string? | 입력 optional null 허용. 01 model이 text 필수면 '' 저장 또는 model nullable — canonical public은 null 유지 (SOL 결정) |
-| `body` | string | 원문 필수 |
-| `rating` | int 1..5 | 필수 |
-| `written_at` | ISO 8601 | 필수, parse 가능해야 함 |
-| `source` | `"native"\|"amazon"\|"synthetic"` | 출처 채널. `source="synthetic"`이면 `is_synthetic=true` 필수(double-false 금지). 반대 방향(is_synthetic=true인 native)은 허용 |
-| `source_ref` | string? | 원본 참조. 외부 소스(native 외)는 필수 |
-| `is_synthetic` | boolean | 합성/테스트 여부 |
-| `verified_purchase` | boolean? | **출처 사이트의 claim이며 Medusa 구매 인증이 아니다.** 신호 없으면 null |
-| `status` | `pending\|approved\|flagged` | 기본값 `pending` |
-| `displayable` | boolean | rights 불명이면 false. `rights_ref=null`이면서 `displayable=true`는 검증 거절 |
-| `rights_ref` | string? | 이용조건·라이선스 참조. 외부 데이터 필수 |
+Amazon 매핑: text→body, rating→rating, timestamp→written_at, asin/parent_asin→동명필드, 원본리뷰ID→external_review_id, 확정한 Medusa IDs→product_id/variant_id. 사용자식별자는 적재하지 않는다. ETL·원본수집·대량적재는 외부팀 소유다.
 
-배치 규칙: 쓰기 전에 배치 전체를 원자적으로 검증하고 멱등(idempotent). 같은 `(source, external_review_id)` 중복은 **datasource 충돌**로 리포트. 외부 리뷰는 기존 Medusa customer/order 없이도 허용한다(필수). 고객 개인정보는 계약 필드에 없다.
+```json
+{"reviews":[{"product_id":"prod_REPLACE_WITH_REAL_ID","external_review_id":"R_REPLACE_WITH_SOURCE_ID","source":"amazon","title":null,"body":"권리와 개인정보를 검수한 원문","rating":4,"written_at":"1996-01-01T00:00:00.000Z","is_synthetic":false,"status":"pending","displayable":false,"source_ref":"https://example.invalid/reviews/source-id"}]}
+```
 
-### 1.3 외부 팀 매핑 노트
+실제 규칙: `apps/backend/src/api/admin/product-reviews/import/validators.ts`, `src/workflows/product-reviews/`, `src/api/store/products/[id]/reviews/`.
 
-- 외부 데이터팀은 별도 브랜치/저장소일 가능성이 높아 계약 대기 없이 이 문서를 proposed로 공유한다. Amazon ETL·원본 수집은 이번 범위 밖.
-- Amazon Reviews 2023 필드 대응(예시): `asin`/`parent_asin`→동명 필드, `rating`→`rating`, `text`/`title`→`body`/`title`, `timestamp`→`written_at`, `verified_purchase`→`verified_purchase`, 사용자 정보는 계약에 없음(적재하지 않음). 실제 페이로드 필드명은 01 검증 결과 후 2차 정합화.
-- 플러그인(lambdacurry) 현 모델은 metadata 없음으로 확인돼 공식 Module 전환 가능성이 높다 — schema 생성·migration은 01 단독.
+## 스펙
 
-## 2. 스펙 계약 (proposed)
+Product metadata.specs는 `{schema_version:"catalog-spec-v1",category,spec_source,fields,extras?}`. Variant의 동일키는 부분fields override이며 category/schema가 같아야 병합한다. unknown은null. 물류weight를 제품무게로 복사하지 않는다. 기존 metadata키는 보존한다.
 
-구현 타입·fixture·patch-input 빌더: `apps/backend/src/scripts/catalog-spec-contract.ts`
-(`SPEC_SCHEMA_VERSION = "catalog-spec-v1"`). **별도 Spec 테이블은 만들지 않는다** — product/variant `metadata.specs` 재사용(D).
+| category | fields |
+| --- | --- |
+| monitor | inch, resolution{width_px,height_px}, refresh_hz, panel, ports, usb_c |
+| keyboard | layout, switch, connection[], noise |
+| mouse | dpi, product_weight_g, connection[], ergonomics |
+| living | capacity_ml, material, dimensions{width_mm,depth_mm,height_mm} |
 
-| 규칙 | 내용 |
-|---|---|
-| 구조 | `{schema_version, category, spec_source, fields, extras?}` |
-| 수치 | 필드명에 단위 포함 typed number (inch, hz, dpi, ml, g, mm, px) |
-| unknown | 확인 불가 값은 `null`. 추정 금지 |
-| 상품/옵션 | `product.metadata.specs` = 기본값, `variant.metadata.specs` = 그 variant만 다른 필드의 부분 override(`mergeSpecs` 머지, variant 우선). 예: 27인치 QHD의 `panel`은 상품 null + `T3D-MON27-IPS`→ips / `T3D-MON27-VA`→va |
-| 물류 weight | `product.weight`(배송비 계산용)를 스펙으로 복사 금지. 제품 무게는 `product_weight_g`로만 |
+low-profile은 배열이 아니므로 extras.form_factor로 보존하고 layout은미확인이다. 미선택 IPS/VA 패널이나 스위치를 상품공통값으로 추정하지 않는다. 검수된 데모14상품은 seed텍스트 근거이며 외부실제품 스펙으로 일반화하지 않는다.
 
-카테고리 필드: monitor `inch/resolution{width_px,height_px}/refresh_hz/panel/ports/usb_c`, keyboard `layout/switch/connection/noise`, mouse `dpi/product_weight_g/connection/ergonomics`, living `capacity_ml/material/dimensions`. 정형 필드에 없는 검증 가능 값은 `extras`에 둔다(hdr10, waterproof 등).
+`catalog-spec-contract.ts`에 타입·검수fixtures, `seed-structured-specs.ts`에 기존공식 Product/Variant update workflow가 있다. seed는 localhost55432의 toss3days_review_spike_20261014에만 실행한다. title/description·SKU를 확인하고 metadata를 병합한다. seed_demo_text 스펙변경만 갱신하고 다른출처 기존specs는 보존한다. 외부팀은 기존 Medusa워크플로로 metadata를 제공한다. 공유DB에는 demo seed를 실행하지 않는다.
 
-`DEMO_SPEC_FIXTURES`는 14개 데모 상품 전부를 seed 텍스트에서 확인 가능한 값으로만 채웠다(나머지 null). `buildSpecPatchInputs()`는 metadata merge용 patch 입력만 생성 — **실제 쓰기는 SOL 계약 선택 후** seed 수정 시에만 반영한다. 기존 `demo/seed/scenario` metadata 키는 merge로 보존해야 한다.
+Storefront catalog-specs.ts가 schema/category/unknown·단위를 검증한다. `/kr/compare?products=handle1,handle2&variants=variant1,variant2`는2~4상품을 표시하며 다른상품의 variant 지정은404. 미지정시첫variant를 표시하고 이름을 명시한다. 가격·구매가능여부는 Store API calculated_price/inventory, 평점은같은Product ID batchstats다. 검색카드스펙도현재ID로 기존Product API를 배치조회한다. 검색인덱스는 최종구매가격·재고의 원본이 아니며 상세/Cart에서 재검증한다.
 
-## 3. 표시/UI 공용 계약 제안 (02 전달용 draft — storefront 편집 없음)
+## Migration / 운영 경계
 
-- 상품 카드/비교표 입력: `{product_id, average_rating: number|null, review_count: number}` (`product-review-stats` 응답과 동형). `average_rating=null`이면 별점 영역을 렌더하지 않는다(0점 표시 금지).
-- 상품 상세 리뷰 영역 입력: `ReviewListResponse` 그대로. `count=0`이면 empty state.
-- 스펙 표시/비교 입력: `mergeSpecs(product.metadata.specs, variant.metadata.specs)` 결과 + `extras`. null 필드는 "확인되지 않음"으로 표시하거나 행을 숨긴다 — 임의 값을 채우지 않는다.
+신규 product_review 및 Medusa module link만 추가했다. Migration20261014124719(생성), Migration20261014125207(default변경), Migration20261014132500(rating CHECK). 적용 migration은 재작성하지 않는다. Product/Variant core 스키마변경은 없다.
 
-## 4. 소유권·전제
-
-| 항목 | 소유 |
-|---|---|
-| 계약 타입·검증·투영 헬퍼·테스트 | 03 (이 파일 + `review-import-contract.ts` + `catalog-spec-contract.ts` + unit spec) |
-| 리뷰 schema/모델/migration/Store·Admin API 구현 | 01 단독 (공식 Module 방식 유력) |
-| Storefront 표시 | 02 (위 draft 입력 계약 사용) |
-| 외부 데이터 적재 | 외부 데이터팀 — Admin import 계약으로만, SQL 금지 |
-| 공유 DB(localhost:55432/toss3days) 쓰기·migration·seed 실행 | 사용자 승인 전 금지. 합성 리뷰 테스트는 격리 DB만 |
-
-미결·대기: 없음(계약 대기 불필요 — SOL이 확정 책임). 플러그인 실제 페이로드 정합화는 01 결과 후 2차.
-
-## 5. 검증 증거
-
-- `npx jest src/scripts/__tests__/data-contracts.unit.spec.ts` (TEST_TYPE=unit): **17/17 통과** — 전 상품 fixture 커버, unknown=null, variant override(IPS/VA·스위치·소음), 물류 weight 미복사, patch 형태 보존, rating 범위/본문/id/date 검증, rights↔displayable, synthetic⇒is_synthetic 필수, 배치 max 100, (source,external_review_id) 중복 충돌, approved+displayable 투영·비공개 필드 제외, 통계 0건→null, 평균 소수점 2자리.
-- DB·API·migration 실행 없음. 실제 적재·런타임 검증은 별도 Gate.
+공유DB toss3days에는 migration·seed·테스트쓰기 미실행. 독립DB에만 합성QA상품/리뷰/고객/주문을 생성했다. 공유환경 사용전 사용자 migration승인이 필요하며 합성seed는운영에적용하지 않는다. 운영Redis/eventbus/locking·동시import·대용량리뷰DB집계·원문권리/PII검수는 별도 운영준비사항이다.

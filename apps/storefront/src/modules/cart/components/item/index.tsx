@@ -33,6 +33,9 @@ const Item = ({ item, type = "full", currencyCode }: ItemProps) => {
       lineId: item.id,
       quantity,
     })
+      // This starter can leave a mutation's RSC patch unfinished. Read the
+      // confirmed cart through a fresh document instead of showing old totals.
+      .then(() => window.location.reload())
       .catch((err) => {
         setError(err.message)
       })

@@ -46,7 +46,8 @@ export async function retrieveCart(cartId?: string, fields?: string) {
       },
       headers,
       next,
-      cache: "force-cache",
+      // Cart quantities, totals and ownership are live commerce state.
+      cache: "no-store",
     })
     .then(({ cart }: { cart: HttpTypes.StoreCart }) => cart)
     .catch(() => null)
@@ -180,13 +181,6 @@ export async function updateLineItem({
 
   await sdk.store.cart
     .updateLineItem(cartId, lineId, { quantity }, {}, headers)
-    .then(async () => {
-      const cartCacheTag = await getCacheTag("carts")
-      revalidateTag(cartCacheTag)
-
-      const fulfillmentCacheTag = await getCacheTag("fulfillment")
-      revalidateTag(fulfillmentCacheTag)
-    })
     .catch(medusaError)
 }
 
@@ -207,13 +201,6 @@ export async function deleteLineItem(lineId: string) {
 
   await sdk.store.cart
     .deleteLineItem(cartId, lineId, {}, headers)
-    .then(async () => {
-      const cartCacheTag = await getCacheTag("carts")
-      revalidateTag(cartCacheTag)
-
-      const fulfillmentCacheTag = await getCacheTag("fulfillment")
-      revalidateTag(fulfillmentCacheTag)
-    })
     .catch(medusaError)
 }
 

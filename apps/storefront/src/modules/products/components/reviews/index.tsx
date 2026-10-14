@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 
 import {
   ProductReviewSort,
@@ -32,6 +33,8 @@ type FetchState = {
 }
 
 const ProductReviews = ({ productId, variantId }: ProductReviewsProps) => {
+  const params = useSearchParams()
+  variantId = params.get("v_id")
   const [sort, setSort] = useState<ProductReviewSort>("newest")
   const [offset, setOffset] = useState(0)
   const [variantOnly, setVariantOnly] = useState(false)
@@ -43,6 +46,7 @@ const ProductReviews = ({ productId, variantId }: ProductReviewsProps) => {
   })
 
   const effectiveVariantId = variantOnly ? variantId : null
+  useEffect(() => { setOffset(0) }, [effectiveVariantId])
 
   useEffect(() => {
     let cancelled = false
@@ -134,7 +138,7 @@ const ProductReviews = ({ productId, variantId }: ProductReviewsProps) => {
           status={state.status}
           errorMessage={state.errorMessage}
           emptyMessage={
-            variantOnly ? "선택한 옵션에는 아직 후기가 없어요." : undefined
+            effectiveVariantId ? "선택한 옵션에는 아직 후기가 없어요." : undefined
           }
           onSortChange={handleSortChange}
           onPageChange={setOffset}

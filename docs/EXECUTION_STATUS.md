@@ -2,6 +2,36 @@
 
 최상위 기준은 저장소 바깥 PROJECT_MASTER_PLAN.md다. Gate 완료는 실제 실행 증거와 Commit으로 기록한다.
 
+## Commerce Readiness 후속 구현 — 2026-10-14
+
+사용자의 후속 구현 요청을 기준으로 Gate A~D를 진행한다. 기존 Commerce Gate 0~6은 보존한다. 기준 `a65dfbf`, 분석 문서 보존 Commit `33c85fd`. 기존 Worker Worktree4개를 깨끗한 상태에서 같은 기준으로 fast-forward했다.
+
+| Gate | 상태 | 완료 조건 / 현재 증거 |
+|---|---|---|
+| A 기술·계약 | PASS | Lambda Curry1.4.0 실제설치/소스검사 후 source·외부ID·관리적재 부재/과도확장/peer문제로채택하지않음. Medusa2.21.2 공식Module 선택, Import·metadata 계약확정 |
+| B Backend | PASS(독립DB) | 승인공개리뷰조회/평균·수/정렬·페이징/상품·옵션연결/Admin멱등import 및 mixedbatch쓰기차단. Return익명401·타인404·receive_now정책400. migration3개·ratingCHECK실제검증 |
+| C UI | PASS(독립환경) | 카드/상세평점·리뷰·스펙·미확인·empty/error/retry·합성표시. 재사용비교표·실가격·v_idhistory동기화·이미지fallback, 배송/반품지원안내정정 |
+| D 통합 QA | PASS(생산빌드/worker1) | 신규리뷰51+스펙9+오류복구3+기존Commerce51=114/114,119.8초,fail/skip/flaky0. 타입/Backend·Admin·Next빌드PASS,unit42/42. UI동일주문3개DB고객·KRW·번호·총액대조PASS |
+
+파일 소유권: 01 backend plugin/리뷰 및 return middleware(본인 Worktree package/lock은 실험만), 02 storefront UI, 03 `docs/COMMERCE_DATA_CONTRACT.md`와 spec contract helper, 04 신규 readiness E2E, 05 저장소 밖 `.local/readiness-spike`와 새 실험DB/독립 검토. SOL은 공통 타입·통합·main package/lock·실행 환경을 관리한다.
+
+사용자는 외부데이터팀의 계약대기를해제하고리뷰우선구현을지시했다. 공유DB `toss3days`에는 Migration·seed·쓰기 검증을실행하지않았다. 별도DB `toss3days_review_spike_20261014`만사용했다. Amazon ETL·대량적재·AI/RAG·새검색엔진은범위밖이다.
+
+### 이번 실행 결과와 제한
+
+- Worker01 `9e09487`·`39ebe57` backend/return,02 `51d0156`·`be001e0` notices/reviewUI,03 `7b14d88`·`3506ef3`·`5b5c84d` specfixtures/contract,04 `31537be`·`e367ec0` QA를main에통합했다. SOL이actualQA에서확인한publicDTO/statusquery/동률정렬·APIfields·옵션RSC정착·Cart수량삭제표시를최소보완했다. 중복reviewhelper/미사용상품Actions중복조회는제거했다.
+- 01~04후속응답지연때사용자는기존Worker LUNA Max수동전환을선택했다. 최신main읽기review범위로재조율해중복구현을막았다.01/05확정치명결함없음,02홈metadata/history/리뷰offset검토,03variantseed갱신,04평균·외부표시검증공백을회수·보완했다. 새채팅/프로젝트/태스크는생성하지않았다.
+- 테스트전용리뷰는모두is_synthetic=true,amazon형태2개API시험값도flag정정했다. 실제Amazon수집/고객후기적재없음. 브라우저원본표시fixture는responseintercept이며DB에쓰지않는다.
+- 구조화상품14개·옵션override10개를기존metadata로확인했다. seed재실행상품0/variant0:JSONB키순서차이를node:util.isDeepStrictEqual로비교해불필요한갱신을없앴다. 다른출처metadata/specs는보존한다.
+- Cart/옵션실패를숨기거나retry/skip하지않았다. 최종생산코드는v_id를공식HistoryAPI로스펙·리뷰·갤러리·구매옵션에동기화한다. Cart·배송no-store,수량/삭제저장후문서재조회로RSC미완료스트림을피한다. 직접실패회귀30/30을두번씩세뷰포트에확인했다.
+- 마지막114/114보고서는 `.local/readiness-spike/qa-report-1791987097461.json`,log `qa-1791987097458.log`. 추가isolatedguard익명/재import2/2. Backendunit42/42·tsc0,Backend/Admin build0 `build-1791987069536.log`,Nextbuild0 `next-build-1791986888202.log`. Next의원본lint생략을lintPASS라고하지않는다. Medusalint0errors/29warnings(28KRWmajor-unit휴리스틱+DB없는계약helpergenericError1),규칙disable없음.
+- UI주문 desktop `order_01M4XC2SQ2Y0JP4ADBYXDTD8RZ`,dark `order_01M4XC422GWPR4ASM057SQQFBJ`,mobile `order_01M4XC586ZGEHCA9KCMTSX4AZR` 모두API고객과동일DB고객/KRW/번호/총액139,000원대조. 개인정보·인증값은기록하지않는다. 증거 `final-ui-orders-db-result.json`.
+- 공유DB읽기검증:product_review테이블없음,relation/extension동일형식해시edd684...가초기후속값과일치. 초기c15eef...는직렬화키이름/필터가달라서비교불가였고스키마변경증거가아님. 컬럼전체스키마불변까지해시로주장하지않는다. 모든쓰기wrapper는독립DBguard를사용했다.
+- Git공개검사367파일·미푸시71blob금지경로/기존비밀값0. 새로운reviewenv·QA인증값별도검사0. 실행증거는Git밖 .local에만보존한다.
+- 로컬완료이며원격Push미실행. hongbinwee계정확인용자격증명사용·GitHubAPI요청은자동승인검토가이번인증승인불명확사유로거부했다. 01추가스레드전송도명시권한불명확으로거부돼후속전송은하지않고기회수결과를사용했다. 외부Push나공유DBmigration은완료로보고하지않는다.
+
+후속:실제데이터권리/PII검수와exactID적재,공유DB사용승인후migration(합성seed제외),대용량리뷰DB집계·동시import재시도/운영locking·Redis,eventbus. RAG/Agent는별도단계:공개승인리뷰만근거,typedunknownspecs,최신variantprice/inventory조회,한국어정답질의평가,사용자승인Cart adapter. 기존2workers48/51동시접속이슈는해결완료로선언하지않는다.
+
 ## 기준점
 
 - upstream: medusajs/dtc-starter, 원본 SHA f677db438f27294fc50e4c7c6612e71ff38eeff5 (Medusa 2.21.2 / Next.js 15.5.24).

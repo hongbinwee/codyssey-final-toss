@@ -1,5 +1,5 @@
 /**
- * Canonical product spec contract — PROPOSED DRAFT (SOL 확정 전).
+ * Canonical product spec contract — catalog-spec-v1.
  *
  * 목적: description/subtitle 자유 텍스트에만 있는 스펙을 metadata의 작은
  * 정형 규격으로 옮겨 조건 비교(요청 B)·필터·비교표의 기계 판독 입력을 만든다.
@@ -14,8 +14,7 @@
  * - product.metadata.specs = 상품 기본값. variant.metadata.specs = 그 variant만
  *   다른 필드의 부분 override (예: 패널 IPS/VA). 머지 규칙은 mergeSpecs().
  * - 값의 출처는 spec_source로 표기한다 ("seed_demo_text" 등).
- * - 이 파일은 계약 + fixture + patch-input 빌더만 제공한다. 실제 쓰기
- *   명령(seed 수정/실행)은 SOL 계약 선택 이후에 한다.
+ * - 실제 쓰기는 독립 DB에 제한된 seed-structured-specs.ts가 수행한다.
  */
 
 import { KOREAN_DEMO_PRODUCTS } from "./seed-korean-catalog-data"
@@ -104,6 +103,7 @@ export function mergeSpecs(
 ): CategorySpecFields | null {
   if (!product) return null
   if (!variant) return product.fields
+  if (variant.schema_version !== product.schema_version || variant.category !== product.category) return product.fields
   return { ...(product.fields as object), ...(variant.fields as object) } as CategorySpecFields
 }
 
@@ -220,11 +220,11 @@ export const DEMO_SPEC_FIXTURES: Record<string, SpecFixture> = {
   },
   "toss3days-keyboard-lowprofile": {
     product: S("keyboard", {
-      layout: "low-profile",
+      layout: null,
       switch: null,
       connection: null,
       noise: null,
-    }),
+    }, { form_factor: "low-profile" }),
     variants: {
       "T3D-KBLP-RED": V("keyboard", { switch: "red_quiet", noise: "quiet" }),
       "T3D-KBLP-BLU": V("keyboard", { switch: "blue_clicky", noise: "clicky" }),

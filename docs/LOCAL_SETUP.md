@@ -133,3 +133,11 @@ Storefront는 로그인한 고객의 Cart만 주문 완료 액션에 전달하�
 | 주문 완료·조회 | `POST /store/carts/:id/complete`, `GET /store/orders`, `GET /store/orders/:id` |
 
 원본의 주문 ID 기반 비인증 조회에 고객 인증·소유권 middleware를 추가했다. 실제 조회 결과 본인200·비로그인401·다른 고객404를 확인했다. 따라서 주문 확인과 계정 상세를 보려면 해당 주문 고객으로 로그인해야 한다. 한국어 UI의 로그인 필수 구매 흐름과 함께 검증한다.
+
+## 리뷰·스펙 독립 검증 환경
+
+이번 후속 구현은 `toss3days_review_spike_20261014` DB와 Backend9002·Storefront8002를 사용한다. 기존 공유DB9000/쇼핑몰8000에는 신규migration/seed를 적용하지 않았다. 리뷰·스펙 화면은 [독립 쇼핑몰](http://localhost:8002/kr)과 [모니터 비교](http://localhost:8002/kr/compare?products=toss3days-monitor-24-fhd,toss3days-monitor-27-qhd)에서 확인한다. 합성fixture상품은 qa-fixture-a-desktop 등이며 실제 고객상품/후기로 취급하지 않는다.
+
+실행 wrapper·env·QA증거는 프로젝트루트 `.local/readiness-spike`에만 보존한다. repo와독립env대상을guard하고비밀값은출력하지않는다. QA환경을프로세스env로읽어 `pnpm test:e2e`를실행한다. 데이터팀용실제필드와API는 [COMMERCE_DATA_CONTRACT.md](COMMERCE_DATA_CONTRACT.md)를기준으로한다. `seed-structured-specs.ts`와리뷰fixtureseed를공유DB에실행하지않는다.
+
+상품옵션URL은 Next공식History API로동기화한다. 상세가격/Cart는같은selectedVariant ID를사용하고스펙·리뷰·갤러리는v_id를따른다. Cart·배송조회는현재상태를no-store로읽는다. 수량·삭제저장이완료되면문서를재조회해확정총액을표시한다. 이Starter의미완료RSC스트림사례를피하기위한최소보완이며동시접속운영안정성보장은별도다.

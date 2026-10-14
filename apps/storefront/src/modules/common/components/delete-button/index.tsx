@@ -1,7 +1,6 @@
 import { deleteLineItem } from "@lib/data/cart"
 import { Spinner, Trash } from "@medusajs/icons"
 import { clx } from "@modules/common/components/ui"
-import { useRouter } from "next/navigation"
 import { useRef, useState } from "react"
 
 const DeleteButton = ({
@@ -19,7 +18,6 @@ const DeleteButton = ({
   "data-testid"?: string
   onDeletingChange?: (isDeleting: boolean) => void
 }) => {
-  const router = useRouter()
   const [isDeleting, setIsDeleting] = useState(false)
   const deletingRef = useRef(false)
 
@@ -32,7 +30,7 @@ const DeleteButton = ({
     setIsDeleting(true)
     onDeletingChange?.(true)
     await deleteLineItem(id)
-      .then(() => router.refresh())
+      .then(() => window.location.reload())
       .catch((_err) => {
         deletingRef.current = false
         setIsDeleting(false)

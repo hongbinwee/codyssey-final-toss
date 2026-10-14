@@ -6,6 +6,7 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import RatingSummary from "../reviews/rating-summary"
 import Thumbnail from "../thumbnail"
 import PreviewPrice from "./price"
+import { specRows } from "@lib/catalog-specs"
 
 export default async function ProductPreview({
   product,
@@ -36,6 +37,7 @@ export default async function ProductPreview({
   const { cheapestPrice } = getProductPrice({
     product,
   })
+  const summarySpecs = specRows(product.metadata).filter(row => row.value !== "미확인").slice(0, 3)
 
   return (
     <LocalizedClientLink href={`/products/${product.handle}`} className="group">
@@ -53,6 +55,7 @@ export default async function ProductPreview({
           >
             {product.title}
           </Text>
+          {summarySpecs.length > 0 && <p className="text-xs leading-5 text-ui-fg-muted" data-testid="product-spec-summary">{summarySpecs.map(row => row.value).join(" · ")}</p>}
           {(reviewSummary !== undefined || reviewSummaryStatus === "error") && (
             <RatingSummary
               summary={reviewSummary ?? null}

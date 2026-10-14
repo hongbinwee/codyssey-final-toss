@@ -34,7 +34,8 @@ export default defineConfig({
   timeout: 90_000,
   expect: { timeout: 15_000 },
   retries: process.env.CI ? 1 : 0,
-  workers: 2,
+  // Local parallel runs can leave RSC requests unfinished; 1 worker passed all 51.
+  workers: 1,
   reporter: [
     ["list"],
     ["html", { outputFolder: "playwright-report", open: "never" }],

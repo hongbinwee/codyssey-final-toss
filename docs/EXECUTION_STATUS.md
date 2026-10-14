@@ -15,9 +15,9 @@
 | 0 Repository & Bootstrap | SOL, 05 | PASS: Clone·hongbinwee Push dry-run·remote·pnpm10.11.1 설치·DB SELECT1·공식 migration. Backend health200, Store product4개 API200, Storefront /dk 및 /dk/store 브라우저 렌더, Admin emailpass200·/app/orders 대시보드/Products 링크 확인 |
 | 1 Design & Parallel Preparation | SOL, 02 | PASS: DESIGN_SYSTEM.md·기능 인벤토리·파일 소유권, Worker Worktree4개·기능 branch·구체 작업 지시. 모든 Worker 응답/작업 시작 확인 |
 | 2 Commerce & Catalog | 01, 03 | PASS: Catalog/한국 설정/소유권 통합, 전용DB seed·재실행/API14상품27Variant/KRW·할인·재고, Commerce22/22(skip0)·주문DB고객/통화 대조. 배송type 수정 후 정식 Backend/Admin build PASS |
-| 3 Storefront UI | 02 | 디자인 MD 기준으로 기존 화면·한국어·테마 작업 진행 |
-| 4 E2E QA | 04 | 최소 테스트 의존성 제공·브라우저 설치·테스트 작성 진행 |
-| 5 Integration & Review | SOL, 05 | 진행: Commerce/Catalog 통합·독립리뷰·정식 Backend/Admin build PASS, 한국어 UI/QA 통합 후 전체 회귀 대기 |
+| 3 Storefront UI | 02 | PASS: 기존 화면 한국어·KRW·Light/Dark/System·반응형. 18개 화면 검사·실제 구매·로그인 복귀·주문 조회 통과 |
+| 4 E2E QA | 04 | PASS(단일 QA Worker): d244c3d에서 전체51/51, 실패0·건너뜀0·flaky0, 108.6초 exit0. 세 UI 주문 DB 대조 PASS |
+| 5 Integration & Review | SOL, 05 | PASS(로컬 단일 Worker 범위): Worker 이력 통합·Next/Medusa/Admin build·Ponytail/주문 인증 검토·최종 E2E·비밀정보 검사 |
 | 6 Commerce Frame Freeze | SOL | 대기 |
 
 ## Medusa 기능 인벤토리
@@ -83,4 +83,25 @@ Gate 0: migration, DB SELECT 1, /health·Admin·Storefront HTTP, Store products 
 - 최소 배송 수정 후 현재 `seed-korea` 재실행 exit0. 설치된 공식 upsert-shipping-options 단계에서 type_id가 기존 type 행 재사용에 반영됨을 확인했다. 기존 한국 설정은 추가 생성하지 않았다.
 - 한국어 검색 `기계식`의 기존 `/store/search` HTTP200·2개 hit를 확인했다. hit.document의 KRW min/max/original 가격이89,000/94,000원 및129,000/135,000원으로 실제 포함됐다. `.local/bootstrap/korean-search-result.json`에 보존했다.
 
-로컬 초기 실행 안내는 `LOCAL_SETUP.md`에 기록했다. Gate 2~6은 아직 완료하지 않았다.
+위 기록은 각 당시의 실행 결과이며 이후 수정 결과는 아래 최신 통합 기록을 기준으로 한다. Gate 0~2 완료 상태를 유지한다.
+
+## 최신 통합 기록
+
+- 사용자에 의한 02 모델 전환 후 기존 Worker 응답 정체 차단이 해소돼 현재 Goal을 재개했다. 새 프로젝트·채팅·태스크는 생성하지 않았다. 진행 중 UI 태스크를 중복 지시하지 않고 완료 후 실제 결함만 보완했다.
+- Worker 최종 이력을 main에 보존했다: 01 `7c67b9a`, 03 `3b2cf97`, 02 `2303708`·`9132e81`·`af08c40`·`1342e8c`·`b8f1d9d`·`734c64f`, 04 `18713b5`·`5efc0a1`·`f30fb15`·`9a8a103`·`7ba6a9e`·`d9adc9b`·`8ced6b6`. 각 Worktree 역할과 기존 Medusa 구조를 유지했다.
+- 초기 Next fetch 캐시는 Europe만 갖고 있어 한국 경로가404였다. 생성 캐시를 로컬 백업하고 재시작해 해소했다. DB·소스·원본 상품을 삭제하지 않았다.
+- KRW 검색 필드의 DB 인덱스 계획이 이전 EUR/USD 상태였다. 공식 `medusa db:migrate:search --execute-safe-search`로 product_v1→product_v2를 추가하고, 재기동 시18문서 자동 sync·활성화를 확인했다. 실제 KRW 상품14개/가격 범위4개 검색 HTTP200 PASS.
+- InstantSearch Configure 숫자 필터와 기존 useRange 충돌은 어댑터 요청 경계에서 가격 존재 조건을 추가하는 최소 변경으로 해결했다. 선택한 가격 하한·상한을 유지한다.
+- 주문 액션은 현재 고객 인증을 `no-store`로 조회하고 Cart 허용 필드 `customer.id`와 비교한다. 비로그인·만료 세션·타인·없는 Cart·Cart 없음의 완료 호출0, 본인1인 검사6/6 PASS. 새 모델·주문 API를 만들지 않았다.
+- 가입 후 무쿼리 Checkout 진입에서 주소 폼이 닫히던 문제를 기존 Cart 상태별 단계 판정으로 수정했다. 미구현 CMS·고객센터 링크는 지원 범위 안내로 바꿨다.
+- UI 주문3건(라이트·다크·모바일)의 같은 order ID를 전용 PostgreSQL `order`·`order_summary`에서 대조해 고객 ID·통화·번호·총액 저장 PASS. 상품9,900원+배송3,000원=12,900원.
+- Light/Dark 화면360·768·1440px의 홈·목록·상세18검사에서 가로 넘침/pageerror 없음. Pretendard 실제 로드와 프로젝트 테마 저장 키 접근 실패 복구 PASS.
+- 초기 병렬 실행의 React418 복구 오류1회는 같은 홈5회 및 재기동 직후1회 재검사에서 발생하지 않았고, 후속 전체 실행에서도 없었다. 오류 무시 패턴은 추가하지 않았다.
+- 최신 Next 정식 build는 TypeScript 검사 포함 exit0. Backend/Admin build exit0, Medusa lint0 errors/28 KRW 정수 가격 휴리스틱 warnings. 원본 Next lint 생략 설정을 lint 통과로 보고하지 않는다.
+- 05의 토스3days Ponytail/인증 검토는 회수했으며, 다른 프로젝트 경로를 대상으로 한 최근 응답은 이번 검증에서 제외했다.
+- 공개 저장소 검사: 추적317파일·미푸시이력221blob에서 실제 비밀값/금지파일0건. 최종 문서 변경 후 Push 직전 다시 확인한다. GitHub CLI의 다른 활성 계정은 쓰지 않고 저장소별 GCM hongbinwee 인증을 사용한다.
+- 최종 검증 소스는 `d244c3dfd7335d4da06dc50bb46df99d1b9670f2`. `playwright test --workers 1` 전체51/51 PASS(108.6초, exit0), 세 프로젝트가 실제 UI 주문·새 세션 조회·고객별 격리를 모두 통과했다. 삭제 처리 중 수량/삭제 잠금과 성공 후 라우터 동기화를 추가했고 모바일 Cart 반복3/3 PASS.
+- 통과 실행에서 생성된 주문: desktop `order_01M4W6R25KDF9YMA4M1WRTWE22`, desktop-dark `order_01M4W6S05CMBK3DETRZ0BD3E7W`, mobile `order_01M4W6T8J3ZH3CHH8Y6G0S1XWP`. 모두 같은 주문의 DB 고객·KRW·번호·총액12,900원 대조 PASS. 고객 이메일·주소·인증값은 공개 기록에서 제외한다.
+- 병렬 QA 2 Workers는48/51로 실패했다. 삭제 및 상세 이동의 RSC 요청 종료 지연이 남고 원인은 확정되지 않았다. 기본 QA는 실제 통과한1 Worker로 실행하며, 동시 접속 안정성은 검증 완료로 선언하지 않는다. 운영 검증 후속 항목으로 보존한다.
+
+실행 증거는 비공개 `.local/bootstrap`와 gitignore된 Playwright 결과 폴더에 보관한다. 환경 파일·키·고객 개인정보·세션·trace는 Commit하지 않는다. 실행 방법과 기존 Medusa API 목록은 [LOCAL_SETUP.md](LOCAL_SETUP.md), 테스트 계약은 [E2E.md](E2E.md)에 기록했다. 실제 PG·배송·이메일·CS·취소/반품/교환·AI·외부 상품 API·외부 배포는 후속 범위다. 운영용 Redis/event bus/locking 설정과 원본 SDK의 전체 Storage 차단 대응도 후속 범위다.

@@ -51,14 +51,14 @@ e2e/
 | 요구 흐름 | 위치 | 방법 |
 | --- | --- | --- |
 | /kr 홈 → 목록/검색 | catalog.spec.ts | 네비게이션·products-list·store-search-input |
-| 상품상세 → variant/가격 | catalog.spec.ts | option-button 클릭 후 표시 금액이 variant 실가격 집합에 속하는지 확인 |
+| 상품상세 → variant/가격 | catalog.spec.ts | 가격이 다른 판매 가능 Variant의 전체 옵션을 선택하고 각각 API 가격과 대조 |
 | 할인 상품 | catalog.spec.ts | original > calculated 금액 비교 |
 | Cart add/update/remove/합계 | cart.spec.ts | 담기 후 `cartItemCount` 폴링→product-select-button·cart-subtotal data-value |
 | 재고 초과·품절 | cart.spec.ts, catalog.spec.ts | Store API 거부 단언 + add 버튼 disabled |
 | 고객A register/login | checkout.spec.ts | register-page 폼 → account-page/customer-email |
 | 주소/배송/mock payment | checkout.spec.ts | step=address→delivery→payment→review, **pp_system_default만 허용**(radio 없으면 실패, cart.payment_sessions로 provider 재확인) |
-| 실제 order ID | checkout.spec.ts | /order/{id}/confirmed URL 캡처 → GET /store/orders/{id}와 대조(id·display_id·total) |
-| 고객 order list/detail | checkout.spec.ts | **새 browser context(baseURL+ko-KR)에서 재로그인** 후 order-card/display_id ↔ order-id, payment-amount = API order.total 대조 |
+| 실제 order ID | checkout.spec.ts | confirmed URL의 order.id를 API로 재조회, 번호·고객 ID·KRW·총액을 최소 JSON attachment로 기록 |
+| 고객 order list/detail | checkout.spec.ts | 새 컨텍스트에 프로젝트 viewport·테마·모바일 설정을 적용하고 재로그인, 같은 주문 번호와 실제 상세 합계를 API total과 대조 |
 | 고객B 타인 상세 denied·목록 격리 | isolation.spec.ts | A 귀속 선검증(목록 포함·customer_id 본인) 후 B API 401/403/404 + UI 404 |
 | mobile/desktop, light/dark/system | config projects + ui.spec.ts | 390x844, 1440x900, colorScheme 에뮬레이션 + 실제 theme-select 컨트롤 |
 | 한국어/KRW | ui.spec.ts | html lang ko, ₩/원 + 소수점 없음 |
@@ -70,7 +70,7 @@ e2e/
 - **한국 리전(kr/KRW) 필수** — 없으면 발견 리전과 함께 실패한다(Europe fallback 없음).
 - **toss3days-* 상품 필수** + 시나리오 픽스처(simple·optioned·soldOut·stockLimited·discounted) 중 하나라도 없으면 목록과 함께 실패한다 — skip으로 통과를 위장하지 않는다.
 - 주문/고객은 실행마다 고유 이메일(qa-*@example.test)과 새 카트로 격리한다.
-- 재고 자동 리셋이 없으므로 실제 주문 생성은 checkout 1건 + isolation 픽스처 1건으로 제한한다. 카트 수준 재고 검증(add/update 거부)은 재고를 소모하지 않아 반복 안전하다.
+- 재고 자동 리셋이 없으므로 실제 주문 생성은 프로젝트별 checkout 1건 + isolation 픽스처 1건으로 제한한다(전체 6건). Cart·품절·재고 초과 검증은 주문을 완료하지 않아 재고를 소모하지 않는다.
 
 ## 셀렉터 근거 (실제 코드 기준)
 
@@ -79,13 +79,16 @@ e2e/
 - 테마: 02 storefront-ui의 theme-select 컴포넌트 실제 계약 — `theme-select-button`(aria-label 테마 선택) → `theme-option-light`/`theme-option-dark`/`theme-option-system`, localStorage 키 `3days-theme`. DOM class·localStorage를 테스트가 직접 조작하지 않는다.
 - 서버 액션 완료 대기: `add-product-button` 클릭은 async server action이므로 `_medusa_cart_id` 쿠키 + Store API 항목 수 폴링으로 확인 후 이동한다(지연 sleep 금지 — baseline 실패 재현 근거 반영).
 
-## 현재 상태 / 미검증
+## 통합 실행
 
-- **NOT_RUN(kr 기준)**: 한국 리전 seed·02 UI 통합 전. `--list` 수집 48 tests(5 files x 3 projects) 통과만 확인됐다. dk/EUR 기준 부분 실행만 mechanics 검증용이며 최종 PASS가 아니다.
-- 주문 소유권 격리: `/store/orders/:id`에 ownership middleware 미적용 시 owner/anonymous/B 모두 200 → isolation.spec.ts 실패가 **기대되는 현재 상태**이며, 01 수정 통합 후 PASS 전환 필수.
-- order.id 대조: cart.complete은 서버 액션이라 브라우저에서 응답을 가로챌 수 없어 confirmed URL의 order.id를 Store API로 재조회한다.
-- DB SELECT 검증: infra 연결 정보 제공 시 SOL/01과 조율 후 추가.
-- 검색 스펙은 `/store/search` 인덱스를 전제한다 — 인덱스 미구축이면 실패 = 실제 결함 신호.
+- 최종 `d244c3d`의 생산 빌드에서 `playwright test --workers 1`51/51 PASS,108.6초,실패0·건너뜀0·flaky0였다. 각 프로젝트의 UI 주문3건을 전용 PostgreSQL의 고객 ID·통화·주문번호·총액과 대조했다. 상세 증거는 `EXECUTION_STATUS.md`에 기록한다.
+- 로컬 기본 QA는1 Worker다.2개 병렬 실행은 RSC 요청 종료 지연으로48/51이었으며 원인은 확정되지 않았다. 이 결과를 숨기거나 동시 접속 안정성이 완료됐다고 해석하지 않는다. 재시도·skip·오류 무시를 추가하지 않았다.
+- 한국 리전·상품·UI·주문 소유권 middleware 통합 후 51개 테스트가 수집된다. 실제 최종 PASS/FAIL 결과와 검증 Commit은 `EXECUTION_STATUS.md`를 기준으로 한다.
+- Backend 9000과 production Storefront 8000을 기동한 후 저장소 루트에서 `pnpm test:e2e`로 실행한다. 공식 검색 스키마 migration 및 재시작 방법은 `LOCAL_SETUP.md`에 있다.
+- `/store/orders/:id`는 본인 200, 다른 고객 404, 비로그인 401이다. UI는 다른 고객의 주문 정보를 표시하지 않는다. 예상된 404 콘솔 오류는 정확히 해당 주문 상세 경로에서 온 경우만 허용한다.
+- Cart·상품 화면의 skeleton과 실제 카드가 같은 상위 testid를 사용하므로 실제 카드·옵션·가격·활성 버튼을 기다린다. Cart 합계는 Header dropdown 대신 `cart-container` 안의 값을 검사한다.
+- `order-diagnostic` 첨부의 UI 주문 ID를 전용 DB의 `order`·`order_summary`와 대조해 고객 ID·통화·번호·실제 총액 저장을 확인한다. 첨부에는 이메일·주소·인증 쿠키·비밀번호를 넣지 않는다.
+- `/store/search` 인덱스가 준비되지 않거나 필수 픽스처가 없으면 실패하며, skip으로 통과시키지 않는다.
 
 ## 산출물
 

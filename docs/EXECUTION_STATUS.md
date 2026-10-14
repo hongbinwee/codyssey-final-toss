@@ -18,7 +18,7 @@
 | 3 Storefront UI | 02 | PASS: 기존 화면 한국어·KRW·Light/Dark/System·반응형. 18개 화면 검사·실제 구매·로그인 복귀·주문 조회 통과 |
 | 4 E2E QA | 04 | PASS(단일 QA Worker): d244c3d에서 전체51/51, 실패0·건너뜀0·flaky0, 108.6초 exit0. 세 UI 주문 DB 대조 PASS |
 | 5 Integration & Review | SOL, 05 | PASS(로컬 단일 Worker 범위): Worker 이력 통합·Next/Medusa/Admin build·Ponytail/주문 인증 검토·최종 E2E·비밀정보 검사 |
-| 6 Commerce Frame Freeze | SOL | 대기 |
+| 6 Commerce Frame Freeze | SOL | PASS(로컬 단일 QA Worker 범위): 기준 b9d58d0을 hongbinwee 인증으로 origin/main Push, 같은 원격 SHA 확인. 실행법·API·제한·Worker 이력·테스트 증거 보존 |
 
 ## Medusa 기능 인벤토리
 
@@ -103,5 +103,6 @@ Gate 0: migration, DB SELECT 1, /health·Admin·Storefront HTTP, Store products 
 - 최종 검증 소스는 `d244c3dfd7335d4da06dc50bb46df99d1b9670f2`. `playwright test --workers 1` 전체51/51 PASS(108.6초, exit0), 세 프로젝트가 실제 UI 주문·새 세션 조회·고객별 격리를 모두 통과했다. 삭제 처리 중 수량/삭제 잠금과 성공 후 라우터 동기화를 추가했고 모바일 Cart 반복3/3 PASS.
 - 통과 실행에서 생성된 주문: desktop `order_01M4W6R25KDF9YMA4M1WRTWE22`, desktop-dark `order_01M4W6S05CMBK3DETRZ0BD3E7W`, mobile `order_01M4W6T8J3ZH3CHH8Y6G0S1XWP`. 모두 같은 주문의 DB 고객·KRW·번호·총액12,900원 대조 PASS. 고객 이메일·주소·인증값은 공개 기록에서 제외한다.
 - 병렬 QA 2 Workers는48/51로 실패했다. 삭제 및 상세 이동의 RSC 요청 종료 지연이 남고 원인은 확정되지 않았다. 기본 QA는 실제 통과한1 Worker로 실행하며, 동시 접속 안정성은 검증 완료로 선언하지 않는다. 운영 검증 후속 항목으로 보존한다.
+- Gate6 기준 Commit은 `b9d58d038d278209d357aa793c674825d867a024`다. `hongbinwee/codyssey-final-toss`의 main에 정상 Push하고 `git ls-remote`로 동일 SHA를 확인했다. 최종 공개 검사317파일·변경 이력227blob에서 실제 비밀값/금지파일0건. HTTP Storefront `/kr`200·Backend `/health`200·Admin `/app`200 확인.
 
 실행 증거는 비공개 `.local/bootstrap`와 gitignore된 Playwright 결과 폴더에 보관한다. 환경 파일·키·고객 개인정보·세션·trace는 Commit하지 않는다. 실행 방법과 기존 Medusa API 목록은 [LOCAL_SETUP.md](LOCAL_SETUP.md), 테스트 계약은 [E2E.md](E2E.md)에 기록했다. 실제 PG·배송·이메일·CS·취소/반품/교환·AI·외부 상품 API·외부 배포는 후속 범위다. 운영용 Redis/event bus/locking 설정과 원본 SDK의 전체 Storage 차단 대응도 후속 범위다.

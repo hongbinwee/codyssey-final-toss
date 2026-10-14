@@ -254,7 +254,14 @@ test.describe("체크아웃 및 주문", () => {
         .getByTestId("order-card")
         .filter({ hasText: "#" + displayId })
       await expect(card).toBeVisible()
-      await card.getByTestId("order-details-link").click()
+      const detailPath =
+        "/" + cat.countryCode + "/account/orders/details/" + orderId
+      const detailLink = card.locator('a[href="' + detailPath + '"]')
+      await expect(detailLink).toBeVisible()
+      await detailLink.click()
+      await expect(page).toHaveURL(
+        new URL(detailPath, e2eEnv.baseURL).toString()
+      )
 
       const orderDetails = page.getByTestId("order-details-container")
       await expect(orderDetails).toBeVisible()

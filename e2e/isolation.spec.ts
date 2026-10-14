@@ -1,5 +1,4 @@
 import { expect, test } from "@playwright/test"
-import type { Response } from "@playwright/test"
 import {
   createOrderForCustomer,
   discoverCatalog,
@@ -56,7 +55,7 @@ test.describe("주문 소유권 격리", () => {
   test("API: 고객B는 고객A 주문 상세를 읽을 수 없고 목록에도 없다", async () => {
     const denied = await getOrderApi(orderA!.id, customerB!.token)
     expect(denied.ok).toBe(false)
-    expect([401, 403, 404]).toContain(denied.status)
+    expect(denied.status).toBe(404)
 
     const ids = await listOrderIdsApi(customerB!.token)
     expect(ids).not.toContain(orderA!.id)
@@ -80,29 +79,18 @@ test.describe("주문 소유권 격리", () => {
 
     const detailPath =
       "/" + cat.countryCode + "/account/orders/details/" + orderA!.id
-    const detail404Urls: string[] = []
-    const recordDetail404 = (response: Response) => {
-      if (response.status() === 404) {
-        detail404Urls.push(response.url())
-      }
-    }
     const errorsBeforeDetail = errors.length
-    page.on("response", recordDetail404)
-    try {
-      await page.goto(detailPath)
-      await expect(
-        page.getByText(/page not found|찾을 수 없/i).first()
-      ).toBeVisible()
-    } finally {
-      page.off("response", recordDetail404)
-    }
+    await page.goto(detailPath)
+    await expect(
+      page.getByText(/page not found|찾을 수 없/i).first()
+    ).toBeVisible()
+    // Next streaming notFound can return an HTTP 200 with a 404 page body.
+    // Allow a resource 404 only while navigating to this denied detail page.
     const detailErrors = errors.splice(errorsBeforeDetail)
-    const expected404Errors = detailErrors.filter((error) =>
-      /console: Failed to load resource.*404/i.test(error)
+    const unexpectedDetailErrors = detailErrors.filter(
+      (error) => !/console: Failed to load resource.*404/i.test(error)
     )
-    expect(detailErrors).toEqual(expected404Errors)
-    expect(expected404Errors.length).toBeGreaterThan(0)
-    expect(detail404Urls.some((url) => url.includes(orderA!.id))).toBe(true)
+    expect(unexpectedDetailErrors).toEqual([])
 
     await page.goto("/" + cat.countryCode + "/account/orders")
     await expect(page.getByTestId("orders-page-wrapper")).toBeVisible()

@@ -80,24 +80,30 @@ test.describe("장바구니", () => {
     await expect.poll(() => cartItemCount(page)).toBe(1)
 
     await page.goto("/" + cat.countryCode + "/cart")
-    await expect(page.getByTestId("cart-container")).toBeVisible()
-    const rows = page.getByTestId("product-row")
+    const cartContainer = page.getByTestId("cart-container")
+    await expect(cartContainer).toBeVisible()
+    const rows = cartContainer.getByTestId("product-row")
     await expect(rows).toHaveCount(1)
 
-    const subtotal = page.getByTestId("cart-subtotal").first()
+    const subtotal = cartContainer.getByTestId("cart-subtotal").first()
+    await expect(subtotal).toBeVisible()
     const before = Number(await subtotal.getAttribute("data-value"))
-    expect(before).toBeGreaterThan(0)
+    expect(before).toBe(variant.calculated_price!.calculated_amount)
 
     // API에서 재고 2개 이상인 variant를 골랐으므로 quantity=2를 반드시 검증한다.
-    const select = page.getByTestId("product-select-button").first()
+    const select = cartContainer.getByTestId("product-select-button").first()
     await expect(select.locator('option[value="2"]')).toHaveCount(1)
     await select.selectOption("2")
+    await expect(select).toHaveValue("2")
     await expect
       .poll(async () => Number(await subtotal.getAttribute("data-value")))
       .toBe(before * 2)
 
-    await page.getByTestId("product-delete-button").click()
-    await expect(page.getByTestId("empty-cart-message")).toBeVisible()
+    const deleteButton = cartContainer.getByTestId("product-delete-button")
+    await expect(deleteButton).toBeVisible()
+    await deleteButton.click()
+    await expect(cartContainer.getByTestId("product-row")).toHaveCount(0)
+    await expect(cartContainer.getByTestId("empty-cart-message")).toBeVisible()
     expect(errors).toEqual([])
   })
 

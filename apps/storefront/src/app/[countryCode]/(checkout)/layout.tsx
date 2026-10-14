@@ -8,8 +8,8 @@ export default function CheckoutLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="w-full bg-white relative small:min-h-screen">
-      <div className="h-16 bg-white border-b ">
+    <div className="w-full bg-ui-bg-base relative small:min-h-screen">
+      <div className="h-16 bg-ui-bg-base border-b border-ui-border-base">
         <nav className="flex h-full items-center content-container justify-between">
           <LocalizedClientLink
             href="/cart"
@@ -18,10 +18,10 @@ export default function CheckoutLayout({
           >
             <ChevronDown className="rotate-90" size={16} />
             <span className="mt-px hidden small:block txt-compact-plus text-ui-fg-subtle hover:text-ui-fg-base ">
-              Back to shopping cart
+              장바구니로 돌아가기
             </span>
             <span className="mt-px block small:hidden txt-compact-plus text-ui-fg-subtle hover:text-ui-fg-base">
-              Back
+              뒤로
             </span>
           </LocalizedClientLink>
           <LocalizedClientLink
@@ -29,7 +29,7 @@ export default function CheckoutLayout({
             className="txt-compact-xlarge-plus text-ui-fg-subtle hover:text-ui-fg-base uppercase"
             data-testid="store-link"
           >
-            Medusa Store
+            3days 쇼핑
           </LocalizedClientLink>
           <div className="flex-1 basis-0" />
         </nav>

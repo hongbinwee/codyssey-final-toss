@@ -17,8 +17,8 @@ export default function ProductPrice({
 
   const selectedPrice = variant ? variantPrice : cheapestPrice
 
-  if (!selectedPrice) {
-    return <div className="block w-32 h-9 bg-gray-100 animate-pulse" />
+      if (!selectedPrice) {
+    return <div className="block w-32 h-9 bg-ui-bg-subtle animate-pulse" />
   }
 
   return (
@@ -28,7 +28,7 @@ export default function ProductPrice({
           "text-ui-fg-interactive": selectedPrice.price_type === "sale",
         })}
       >
-        {!variant && "From "}
+        {!variant && "최저 "}
         <span
           data-testid="product-price"
           data-value={selectedPrice.calculated_price_number}
@@ -39,7 +39,7 @@ export default function ProductPrice({
       {selectedPrice.price_type === "sale" && (
         <>
           <p>
-            <span className="text-ui-fg-subtle">Original: </span>
+            <span className="text-ui-fg-subtle">정가 </span>
             <span
               className="line-through"
               data-testid="original-product-price"
@@ -48,8 +48,8 @@ export default function ProductPrice({
               {selectedPrice.original_price}
             </span>
           </p>
-          <span className="text-ui-fg-interactive">
-            -{selectedPrice.percentage_diff}%
+          <span className="text-ui-tag-red-text font-semibold">
+            {selectedPrice.percentage_diff}% 할인
           </span>
         </>
       )}

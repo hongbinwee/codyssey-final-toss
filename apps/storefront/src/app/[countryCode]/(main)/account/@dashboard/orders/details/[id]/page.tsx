@@ -16,8 +16,8 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   }
 
   return {
-    title: `Order #${order.display_id}`,
-    description: `View your order`,
+    title: `주문 #${order.display_id}`,
+    description: `주문 상세 정보`,
   }
 }
 

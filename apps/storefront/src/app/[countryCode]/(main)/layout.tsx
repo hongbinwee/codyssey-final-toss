@@ -5,6 +5,7 @@ import { retrieveCustomer } from "@lib/data/customer"
 import { getBaseURL } from "@lib/util/env"
 import { StoreCartShippingOption } from "@medusajs/types"
 import CartMismatchBanner from "@modules/layout/components/cart-mismatch-banner"
+import BottomNav from "@modules/layout/components/bottom-nav"
 import Footer from "@modules/layout/templates/footer"
 import Nav from "@modules/layout/templates/nav"
 import FreeShippingPriceNudge from "@modules/shipping/components/free-shipping-price-nudge"
@@ -13,7 +14,11 @@ export const metadata: Metadata = {
   metadataBase: new URL(getBaseURL()),
 }
 
-export default async function PageLayout(props: { children: React.ReactNode }) {
+export default async function PageLayout(props: {
+  children: React.ReactNode
+  params: Promise<{ countryCode: string }>
+}) {
+  const { countryCode } = await props.params
   const customer = await retrieveCustomer()
   const cart = await retrieveCart()
   let shippingOptions: StoreCartShippingOption[] = []
@@ -26,7 +31,7 @@ export default async function PageLayout(props: { children: React.ReactNode }) {
 
   return (
     <>
-      <Nav />
+      <Nav countryCode={countryCode} />
       {customer && cart && (
         <CartMismatchBanner customer={customer} cart={cart} />
       )}
@@ -38,8 +43,11 @@ export default async function PageLayout(props: { children: React.ReactNode }) {
           shippingOptions={shippingOptions}
         />
       )}
-      {props.children}
+      <div className="pb-[calc(3.5rem+env(safe-area-inset-bottom))] small:pb-0">
+        {props.children}
+      </div>
       <Footer />
+      <BottomNav />
     </>
   )
 }

@@ -13,44 +13,70 @@ const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
     return formatted.slice(0, 1).toUpperCase() + formatted.slice(1)
   }
 
+  const fulfillmentStatusMap: Record<string, string> = {
+    not_fulfilled: "배송 준비 중",
+    partially_fulfilled: "일부 배송됨",
+    fulfilled: "배송 완료",
+    partially_shipped: "일부 출고",
+    shipped: "출고 완료",
+    partially_delivered: "일부 배송 완료",
+    delivered: "배송 완료",
+    canceled: "취소됨",
+  }
+
+  const paymentStatusMap: Record<string, string> = {
+    not_paid: "결제 대기",
+    awaiting: "결제 대기",
+    authorized: "결제 승인",
+    partially_authorized: "일부 승인",
+    captured: "결제 완료",
+    partially_captured: "일부 결제 완료",
+    partially_refunded: "부분 환불",
+    refunded: "환불 완료",
+    canceled: "취소됨",
+  }
+
+  const toKorean = (status: string, map: Record<string, string>) =>
+    map[status] ?? formatStatus(status)
+
   return (
     <div>
       <Text>
-        We have sent the order confirmation details to{" "}
+        주문 확인 정보를{" "}
         <span
           className="text-ui-fg-medium-plus font-semibold"
           data-testid="order-email"
         >
           {order.email}
         </span>
-        .
+        으로 보냈어요.
       </Text>
       <Text className="mt-2">
-        Order date:{" "}
+        주문일:{" "}
         <span data-testid="order-date">
-          {new Date(order.created_at).toDateString()}
+          {new Date(order.created_at).toLocaleDateString("ko-KR")}
         </span>
       </Text>
       <Text className="mt-2 text-ui-fg-interactive">
-        Order number: <span data-testid="order-id">{order.display_id}</span>
+        주문 번호: <span data-testid="order-id">{order.display_id}</span>
       </Text>
 
       <div className="flex items-center text-compact-small gap-x-4 mt-4">
         {showStatus && (
           <>
             <Text>
-              Order status:{" "}
+              주문 상태:{" "}
               <span className="text-ui-fg-subtle " data-testid="order-status">
-                {formatStatus(order.fulfillment_status)}
+                {toKorean(order.fulfillment_status, fulfillmentStatusMap)}
               </span>
             </Text>
             <Text>
-              Payment status:{" "}
+              결제 상태:{" "}
               <span
                 className="text-ui-fg-subtle "
-                sata-testid="order-payment-status"
+                data-testid="order-payment-status"
               >
-                {formatStatus(order.payment_status)}
+                {toKorean(order.payment_status, paymentStatusMap)}
               </span>
             </Text>
           </>

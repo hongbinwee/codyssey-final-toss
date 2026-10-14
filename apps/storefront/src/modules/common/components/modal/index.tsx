@@ -34,7 +34,7 @@ const Modal = ({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-opacity-75 backdrop-blur-md  h-screen" />
+          <div className="fixed inset-0 bg-ui-bg-overlay backdrop-blur-md h-screen" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-hidden">
@@ -65,7 +65,8 @@ const Modal = ({
                     "max-w-xl": size === "medium",
                     "max-w-3xl": size === "large",
                     "bg-transparent shadow-none": search,
-                    "bg-white shadow-xl border rounded-rounded": !search,
+                    "bg-ui-bg-base shadow-xl border border-ui-border-base rounded-rounded":
+                      !search,
                   }
                 )}
               >

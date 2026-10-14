@@ -12,12 +12,12 @@ import LanguageSelect from "../language-select"
 import { Locale } from "@lib/data/locales"
 
 
-const SideMenuItems = {
-  Home: "/",
-  Store: "/store",
-  Account: "/account",
-  Cart: "/cart",
-}
+const SideMenuItems = [
+  { name: "홈", href: "/", testId: "home-link" },
+  { name: "상품", href: "/store", testId: "store-link" },
+  { name: "내 쇼핑", href: "/account", testId: "account-link" },
+  { name: "장바구니", href: "/cart", testId: "cart-link" },
+]
 
 type SideMenuProps = {
   regions: HttpTypes.StoreRegion[] | null
@@ -40,7 +40,7 @@ const SideMenu = ({ regions, locales, currentLocale }: SideMenuProps) => {
                   data-testid="nav-menu-button"
                   className="relative h-full flex items-center transition-all ease-out duration-200 focus:outline-none hover:text-ui-fg-base"
                 >
-                  Menu
+                  메뉴
                 </Popover.Button>
               </div>
 
@@ -68,19 +68,23 @@ const SideMenu = ({ regions, locales, currentLocale }: SideMenuProps) => {
                     className="flex flex-col h-full bg-[rgba(3,7,18,0.5)] rounded-rounded justify-between p-6"
                   >
                     <div className="flex justify-end" id="xmark">
-                      <button data-testid="close-menu-button" onClick={close}>
+                      <button
+                        data-testid="close-menu-button"
+                        onClick={close}
+                        aria-label="메뉴 닫기"
+                      >
                         <XMark />
                       </button>
                     </div>
                     <ul className="flex flex-col gap-6 items-start justify-start">
-                      {Object.entries(SideMenuItems).map(([name, href]) => {
+                      {SideMenuItems.map(({ name, href, testId }) => {
                         return (
                           <li key={name}>
                             <LocalizedClientLink
                               href={href}
-                              className="text-3xl leading-10 hover:text-ui-fg-disabled"
+                              className="text-3xl leading-10 text-white hover:text-white/70"
                               onClick={close}
-                              data-testid={`${name.toLowerCase()}-link`}
+                              data-testid={testId}
                             >
                               {name}
                             </LocalizedClientLink>
@@ -127,8 +131,7 @@ const SideMenu = ({ regions, locales, currentLocale }: SideMenuProps) => {
                         />
                       </div>
                       <Text className="flex justify-between txt-compact-small">
-                        © {new Date().getFullYear()} Medusa Store. All rights
-                        reserved.
+                        © {new Date().getFullYear()} 3days 쇼핑
                       </Text>
                     </div>
                   </div>

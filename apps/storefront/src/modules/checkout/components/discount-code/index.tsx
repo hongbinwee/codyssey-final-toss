@@ -54,7 +54,7 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
   }
 
   return (
-    <div className="w-full bg-white flex flex-col">
+    <div className="w-full bg-ui-bg-base flex flex-col">
       <div className="txt-medium">
         <form action={(a) => addPromotionCode(a)} className="w-full mb-5">
           <Label className="flex gap-x-1 my-2 items-center">
@@ -64,7 +64,7 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
               className="txt-medium text-ui-fg-interactive hover:text-ui-fg-interactive-hover"
               data-testid="add-discount-button"
             >
-              Add Promotion Code(s)
+              프로모션 코드 입력
             </button>
 
             {/* <Tooltip content="You can add multiple promotion codes">
@@ -78,6 +78,7 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
                 <Input
                   className="size-full"
                   id="promotion-input"
+                  label="프로모션 코드"
                   name="code"
                   type="text"
                   autoFocus={false}
@@ -87,7 +88,7 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
                   variant="secondary"
                   data-testid="discount-apply-button"
                 >
-                  Apply
+                  적용
                 </SubmitButton>
               </div>
 
@@ -102,9 +103,7 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
         {promotions.length > 0 && (
           <div className="w-full flex items-center">
             <div className="flex flex-col w-full">
-              <Heading className="txt-medium mb-2">
-                Promotion(s) applied:
-              </Heading>
+              <Heading className="txt-medium mb-2">적용된 프로모션</Heading>
 
               {promotions.map((promotion) => {
                 return (
@@ -157,9 +156,7 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
                         data-testid="remove-discount-button"
                       >
                         <Trash size={14} />
-                        <span className="sr-only">
-                          Remove discount code from order
-                        </span>
+                        <span className="sr-only">프로모션 코드 삭제</span>
                       </button>
                     )}
                   </div>

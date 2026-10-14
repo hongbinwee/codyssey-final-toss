@@ -142,18 +142,18 @@ function FreeShippingInline({
   }
 }) {
   return (
-    <div className="bg-neutral-100 p-2 rounded-lg border">
+    <div className="bg-ui-bg-subtle p-2 rounded-lg border border-ui-border-base">
       <div className="space-y-1.5">
-        <div className="flex justify-between text-xs text-neutral-600">
+        <div className="flex justify-between text-xs text-ui-fg-subtle">
           <div>
             {price.target_reached ? (
               <div className="flex items-center gap-1.5">
                 {" "}
-                <CheckCircleSolid className="text-green-500 inline-block" />{" "}
-                Free Shipping unlocked!
+                <CheckCircleSolid className="text-ui-tag-green-text inline-block" />{" "}
+                무료 배송 적용됨
               </div>
             ) : (
-              `Unlock Free Shipping`
+              `무료 배송`
             )}
           </div>
 
@@ -162,14 +162,13 @@ function FreeShippingInline({
               "opacity-0 invisible": price.target_reached,
             })}
           >
-            Only{" "}
-            <span className="text-neutral-950">
+            <span className="text-ui-fg-base">
               {convertToLocale({
                 amount: price.target_remaining,
                 currency_code: cart.currency_code,
               })}
             </span>{" "}
-            away
+            더 담으면 무료
           </div>
         </div>
         <div className="flex justify-between gap-1">
@@ -182,7 +181,7 @@ function FreeShippingInline({
             )}
             style={{ width: `${price.remaining_percentage}%` }}
           ></div>
-          <div className="bg-neutral-300 h-1 rounded-full w-fit flex-grow"></div>
+          <div className="bg-ui-bg-component h-1 rounded-full w-fit flex-grow"></div>
         </div>
       </div>
     </div>
@@ -201,7 +200,7 @@ function FreeShippingPopup({
   return (
     <div
       className={clx(
-        "fixed bottom-5 right-5 flex flex-col items-end gap-2 transition-all duration-500 ease-in-out z-10",
+        "fixed inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-10 flex flex-col items-end gap-2 transition-all duration-500 ease-in-out small:inset-x-auto small:bottom-5 small:right-5",
         {
           "opacity-0 invisible delay-1000": price.target_reached,
           "opacity-0 invisible": isClosed,
@@ -211,25 +210,26 @@ function FreeShippingPopup({
     >
       <div>
         <Button
-          className="rounded-full bg-neutral-900 shadow-none outline-none border-none text-[15px] p-2"
+          className="rounded-full p-2"
           onClick={() => setIsClosed(true)}
+          aria-label="닫기"
         >
           <XMark />
         </Button>
       </div>
 
-      <div className="w-[400px] bg-black text-white p-6 rounded-lg ">
+      <div className="w-full max-w-[400px] rounded-lg border border-ui-border-base bg-ui-bg-base p-4 text-ui-fg-base shadow-lg small:p-6">
         <div className="pb-4">
           <div className="space-y-3">
-            <div className="flex justify-between text-[15px] text-neutral-400">
+            <div className="flex justify-between text-[15px] text-ui-fg-subtle">
               <div>
                 {price.target_reached ? (
                   <div className="flex items-center gap-1.5">
-                    <CheckCircleSolid className="text-green-500 inline-block" />{" "}
-                    Free Shipping unlocked!
+                    <CheckCircleSolid className="text-ui-tag-green-text inline-block" />{" "}
+                    무료 배송 적용됨
                   </div>
                 ) : (
-                  `Unlock Free Shipping`
+                  `무료 배송`
                 )}
               </div>
 
@@ -238,14 +238,13 @@ function FreeShippingPopup({
                   "opacity-0 invisible": price.target_reached,
                 })}
               >
-                Only{" "}
-                <span className="text-white">
+                <span className="text-ui-fg-base">
                   {convertToLocale({
                     amount: price.target_remaining,
                     currency_code: cart.currency_code,
                   })}
                 </span>{" "}
-                away
+                더 담으면 무료
               </div>
             </div>
             <div className="flex justify-between gap-1">
@@ -258,24 +257,24 @@ function FreeShippingPopup({
                 )}
                 style={{ width: `${price.remaining_percentage}%` }}
               ></div>
-              <div className="bg-zinc-600 h-1.5 rounded-full w-fit flex-grow"></div>
+              <div className="bg-ui-bg-component h-1.5 rounded-full w-fit flex-grow"></div>
             </div>
           </div>
         </div>
 
         <div className="flex gap-3">
           <LocalizedClientLink
-            className="rounded-2xl bg-transparent shadow-none outline-none border-[1px] border-white text-[15px] py-2.5 px-4"
+            className="rounded-2xl border border-ui-border-base bg-transparent px-4 py-2.5 text-[15px] text-ui-fg-base"
             href="/cart"
           >
-            View cart
+            장바구니 보기
           </LocalizedClientLink>
 
           <LocalizedClientLink
-            className="flex-grow rounded-2xl bg-white text-neutral-950 shadow-none outline-none border-[1px] border-white text-[15px] py-2.5 px-4 text-center"
+            className="flex-grow rounded-2xl border border-ui-fg-base bg-ui-fg-base px-4 py-2.5 text-center text-[15px] text-ui-bg-base"
             href="/store"
           >
-            View products
+            상품 더 보기
           </LocalizedClientLink>
         </div>
       </div>

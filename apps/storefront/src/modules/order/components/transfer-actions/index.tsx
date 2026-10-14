@@ -39,13 +39,11 @@ const TransferActions = ({ id, token }: { id: string; token: string }) => {
   return (
     <div className="flex flex-col gap-y-4">
       {status?.accept === "success" && (
-        <Text className="text-emerald-500">
-          Order transferred successfully!
-        </Text>
+        <Text className="text-ui-tag-green-text">주문이 이전됐어요.</Text>
       )}
       {status?.decline === "success" && (
-        <Text className="text-emerald-500">
-          Order transfer declined successfully!
+        <Text className="text-ui-tag-green-text">
+          주문 이전을 거절했어요.
         </Text>
       )}
       {status?.accept !== "success" && status?.decline !== "success" && (
@@ -58,7 +56,7 @@ const TransferActions = ({ id, token }: { id: string; token: string }) => {
               status?.accept === "pending" || status?.decline === "pending"
             }
           >
-            Accept transfer
+            이전 수락
           </Button>
           <Button
             size="large"
@@ -69,11 +67,11 @@ const TransferActions = ({ id, token }: { id: string; token: string }) => {
               status?.accept === "pending" || status?.decline === "pending"
             }
           >
-            Decline transfer
+            이전 거절
           </Button>
         </div>
       )}
-      {errorMessage && <Text className="text-red-500">{errorMessage}</Text>}
+      {errorMessage && <Text className="text-ui-fg-error">{errorMessage}</Text>}
     </div>
   )
 }

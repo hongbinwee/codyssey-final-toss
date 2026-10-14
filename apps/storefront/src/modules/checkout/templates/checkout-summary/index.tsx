@@ -9,13 +9,13 @@ import { HttpTypes } from "@medusajs/types"
 const CheckoutSummary = ({ cart }: { cart: HttpTypes.StoreCart }) => {
   return (
     <div className="sticky top-0 flex flex-col-reverse small:flex-col gap-y-8 py-8 small:py-0 ">
-      <div className="w-full bg-white flex flex-col">
+      <div className="w-full bg-ui-bg-base flex flex-col">
         <Divider className="my-6 small:hidden" />
         <Heading
           level="h2"
           className="flex flex-row text-3xl-regular items-baseline"
         >
-          In your Cart
+          주문 상품
         </Heading>
         <Divider className="my-6" />
         <CartTotals totals={cart} />

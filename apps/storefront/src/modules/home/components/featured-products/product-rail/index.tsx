@@ -1,4 +1,5 @@
 import { listProducts } from "@lib/data/products"
+import { hasRegionPrice } from "@lib/util/get-product-price"
 import { HttpTypes } from "@medusajs/types"
 import { Text } from "@modules/common/components/ui"
 
@@ -22,7 +23,9 @@ export default async function ProductRail({
     },
   })
 
-  if (!pricedProducts) {
+  const products = (pricedProducts ?? []).filter(hasRegionPrice)
+
+  if (!products.length) {
     return null
   }
 
@@ -31,16 +34,15 @@ export default async function ProductRail({
       <div className="flex justify-between mb-8">
         <Text className="txt-xlarge">{collection.title}</Text>
         <InteractiveLink href={`/collections/${collection.handle}`}>
-          View all
+          모두 보기
         </InteractiveLink>
       </div>
-      <ul className="grid grid-cols-2 small:grid-cols-3 gap-x-6 gap-y-24 small:gap-y-36">
-        {pricedProducts &&
-          pricedProducts.map((product) => (
-            <li key={product.id}>
-              <ProductPreview product={product} region={region} isFeatured />
-            </li>
-          ))}
+      <ul className="grid grid-cols-2 small:grid-cols-3 medium:grid-cols-4 gap-x-4 gap-y-8">
+        {products.map((product) => (
+          <li key={product.id}>
+            <ProductPreview product={product} region={region} isFeatured />
+          </li>
+        ))}
       </ul>
     </div>
   )

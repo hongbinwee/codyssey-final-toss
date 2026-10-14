@@ -57,9 +57,7 @@ const OptionsPicker = ({
   return (
     <div className="flex flex-col gap-y-4">
       <div className="flex items-center justify-between px-1">
-        <span className="txt-compact-small-plus text-ui-fg-subtle">
-          Options
-        </span>
+        <span className="txt-compact-small-plus text-ui-fg-subtle">옵션</span>
       </div>
       <Accordion.Root
         type="multiple"
@@ -107,7 +105,7 @@ const OptionsPicker = ({
                 <Accordion.Trigger className="flex w-full items-center justify-between py-3 text-left">
                   <div className="flex items-center gap-2">
                     <span className="txt-compact-small-plus text-ui-fg-base">
-                      {option.title || "Option"}
+                      {option.title || "옵션"}
                     </span>
                     <span className="txt-compact-small-plus text-ui-fg-muted">
                       ({selectedCount})

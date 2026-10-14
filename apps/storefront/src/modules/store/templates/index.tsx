@@ -3,7 +3,11 @@
 import type { SearchClient } from "instantsearch.js"
 import { Configure, InstantSearch } from "react-instantsearch"
 
-import { PRODUCT_INDEX_NAME, searchClient } from "@lib/search-client"
+import {
+  priceAttribute,
+  PRODUCT_INDEX_NAME,
+  searchClient,
+} from "@lib/search-client"
 import StoreHits from "@modules/store/components/store-hits"
 import StoreRefinements from "@modules/store/components/store-refinements"
 import StoreSearchBox from "@modules/store/components/store-search-box"
@@ -14,7 +18,7 @@ const StoreTemplate = ({ currencyCode }: { currencyCode: string }) => {
   return (
     <div className="py-6 content-container" data-testid="category-container">
       <div className="mb-8 text-2xl-semi">
-        <h1 data-testid="store-page-title">All products</h1>
+        <h1 data-testid="store-page-title">전체 상품</h1>
       </div>
 
       <div className="flex flex-col small:flex-row small:items-start">
@@ -24,7 +28,12 @@ const StoreTemplate = ({ currencyCode }: { currencyCode: string }) => {
           routing
           future={{ preserveSharedStateOnUnmount: true }}
         >
-          <Configure hitsPerPage={PRODUCT_LIMIT} />
+          <Configure
+            hitsPerPage={PRODUCT_LIMIT}
+            numericFilters={[
+              `${priceAttribute("min_price", currencyCode)} >= 0`,
+            ]}
+          />
           <StoreRefinements currencyCode={currencyCode} />
           <div className="w-full min-w-0">
             <StoreSearchBox />

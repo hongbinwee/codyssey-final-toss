@@ -7,6 +7,7 @@ import {
   Transition,
 } from "@headlessui/react"
 import { convertToLocale } from "@lib/util/money"
+import { ShoppingCart } from "@medusajs/icons"
 import { HttpTypes } from "@medusajs/types"
 import { Button } from "@modules/common/components/ui"
 import DeleteButton from "@modules/common/components/delete-button"
@@ -82,10 +83,24 @@ const CartDropdown = ({
       <Popover className="relative h-full">
         <PopoverButton className="h-full">
           <LocalizedClientLink
-            className="hover:text-ui-fg-base"
+            className="hover:text-ui-fg-base flex items-center gap-x-1.5"
             href="/cart"
+            aria-label={`장바구니 ${totalItems}개`}
             data-testid="nav-cart-link"
-          >{`Cart (${totalItems})`}</LocalizedClientLink>
+          >
+            <span className="relative">
+              <ShoppingCart className="h-5 w-5" />
+              {totalItems > 0 && (
+                <span
+                  className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-ui-tag-red-text px-1 text-[10px] font-bold text-white"
+                  data-testid="nav-cart-count"
+                >
+                  {totalItems > 99 ? "99+" : totalItems}
+                </span>
+              )}
+            </span>
+            <span className="hidden small:inline">장바구니</span>
+          </LocalizedClientLink>
         </PopoverButton>
         <Transition
           show={cartDropdownOpen}
@@ -99,11 +114,11 @@ const CartDropdown = ({
         >
           <PopoverPanel
             static
-            className="hidden small:block absolute top-[calc(100%+1px)] right-0 bg-white border-x border-b border-gray-200 w-[420px] text-ui-fg-base"
+            className="hidden small:block absolute top-[calc(100%+1px)] right-0 bg-ui-bg-base border-x border-b border-ui-border-base w-[420px] text-ui-fg-base"
             data-testid="nav-cart-dropdown"
           >
             <div className="p-4 flex items-center justify-center">
-              <h3 className="text-large-semi">Cart</h3>
+              <h3 className="text-large-semi">장바구니</h3>
             </div>
             {cartState && cartState.items?.length ? (
               <>
@@ -151,7 +166,7 @@ const CartDropdown = ({
                                   data-testid="cart-item-quantity"
                                   data-value={item.quantity}
                                 >
-                                  Quantity: {item.quantity}
+                                  수량 {item.quantity}
                                 </span>
                               </div>
                               <div className="flex justify-end">
@@ -168,7 +183,7 @@ const CartDropdown = ({
                             className="mt-1"
                             data-testid="cart-item-remove-button"
                           >
-                            Remove
+                            삭제
                           </DeleteButton>
                         </div>
                       </div>
@@ -177,8 +192,8 @@ const CartDropdown = ({
                 <div className="p-4 flex flex-col gap-y-4 text-small-regular">
                   <div className="flex items-center justify-between">
                     <span className="text-ui-fg-base font-semibold">
-                      Subtotal{" "}
-                      <span className="font-normal">(excl. taxes)</span>
+                      상품 금액{" "}
+                      <span className="font-normal">(배송비 제외)</span>
                     </span>
                     <span
                       className="text-large-semi"
@@ -197,7 +212,7 @@ const CartDropdown = ({
                       size="large"
                       data-testid="go-to-cart-button"
                     >
-                      Go to cart
+                      장바구니로 이동
                     </Button>
                   </LocalizedClientLink>
                 </div>
@@ -205,15 +220,15 @@ const CartDropdown = ({
             ) : (
               <div>
                 <div className="flex py-16 flex-col gap-y-4 items-center justify-center">
-                  <div className="bg-gray-900 text-small-regular flex items-center justify-center w-6 h-6 rounded-full text-white">
+                  <div className="bg-ui-fg-base text-small-regular flex items-center justify-center w-6 h-6 rounded-full text-ui-bg-base">
                     <span>0</span>
                   </div>
-                  <span>Your shopping bag is empty.</span>
+                  <span>담긴 상품이 없어요</span>
                   <div>
                     <LocalizedClientLink href="/store">
                       <>
-                        <span className="sr-only">Go to all products page</span>
-                        <Button onClick={close}>Explore products</Button>
+                        <span className="sr-only">전체 상품 페이지로 이동</span>
+                        <Button onClick={close}>상품 둘러보기</Button>
                       </>
                     </LocalizedClientLink>
                   </div>

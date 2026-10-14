@@ -34,7 +34,7 @@ function refinementLabel(refinement: Refinement, currencyCode: string) {
   }
 
   if (attribute === priceAttribute("on_sale", currencyCode)) {
-    return "On sale"
+    return "할인 중"
   }
 
   if (attribute === priceAttribute("min_price", currencyCode)) {
@@ -45,16 +45,16 @@ function refinementLabel(refinement: Refinement, currencyCode: string) {
     })
 
     return operator === "<=" || operator === "<"
-      ? `Up to ${amount}`
-      : `From ${amount}`
+      ? `${amount} 이하`
+      : `${amount} 이상`
   }
 
   if (attribute === CATEGORY_ATTRIBUTE) {
-    return `Category: ${label}`
+    return `카테고리: ${label}`
   }
 
   if (attribute === LABELS_ATTRIBUTE) {
-    return `Label: ${label}`
+    return `라벨: ${label}`
   }
 
   return label
@@ -79,7 +79,7 @@ const CurrentRefinements = ({ currencyCode }: { currencyCode: string }) => {
     <div className="flex flex-col gap-y-3" data-testid="current-refinements">
       <div className="flex items-center justify-between gap-x-2 pr-6">
         <span className="txt-compact-small-plus text-ui-fg-subtle">
-          Applied filters
+          적용된 필터
         </span>
         {canClearAll && (
           <button
@@ -87,7 +87,7 @@ const CurrentRefinements = ({ currencyCode }: { currencyCode: string }) => {
             className="txt-compact-small-plus text-ui-fg-interactive hover:text-ui-fg-interactive-hover"
             data-testid="clear-refinements"
           >
-            Clear all
+            모두 지우기
           </button>
         )}
       </div>
@@ -104,7 +104,7 @@ const CurrentRefinements = ({ currencyCode }: { currencyCode: string }) => {
             >
               <button
                 onClick={() => refine(refinement)}
-                aria-label={`Remove filter ${label}`}
+                aria-label={`필터 삭제: ${label}`}
                 className="border-ui-border-interactive text-ui-fg-base border text-small-regular h-8 rounded-rounded px-3 flex items-center gap-x-1.5 transition-colors duration-150 hover:bg-ui-bg-base-hover"
                 data-testid="remove-refinement"
               >

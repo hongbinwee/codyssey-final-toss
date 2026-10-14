@@ -14,19 +14,19 @@ const ItemsTemplate = ({ cart }: ItemsTemplateProps) => {
   return (
     <div>
       <div className="pb-3 flex items-center">
-        <Heading className="text-[2rem] leading-[2.75rem]">Cart</Heading>
+        <Heading className="text-[2rem] leading-[2.75rem]">장바구니</Heading>
       </div>
       <Table>
         <Table.Header className="border-t-0">
           <Table.Row className="text-ui-fg-subtle txt-medium-plus">
-            <Table.HeaderCell className="!pl-0">Item</Table.HeaderCell>
+            <Table.HeaderCell className="!pl-0">상품</Table.HeaderCell>
             <Table.HeaderCell></Table.HeaderCell>
-            <Table.HeaderCell>Quantity</Table.HeaderCell>
+            <Table.HeaderCell>수량</Table.HeaderCell>
             <Table.HeaderCell className="hidden small:table-cell">
-              Price
+              가격
             </Table.HeaderCell>
             <Table.HeaderCell className="!pr-0 text-right">
-              Total
+              합계
             </Table.HeaderCell>
           </Table.Row>
         </Table.Header>

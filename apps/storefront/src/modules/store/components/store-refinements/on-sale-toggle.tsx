@@ -29,7 +29,7 @@ const OnSaleToggle = ({ currencyCode }: { currencyCode: string }) => {
         data-testid="on-sale-toggle"
       />
       <span className="txt-compact-small-plus text-ui-fg-subtle">
-        On sale only
+        할인 상품만
       </span>
       {typeof value.count === "number" && (
         <span className="text-small-regular text-ui-fg-muted">

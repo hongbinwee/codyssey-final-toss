@@ -9,8 +9,8 @@ import { listRegions } from "@lib/data/regions"
 import { retrieveCustomer } from "@lib/data/customer"
 
 export const metadata: Metadata = {
-  title: "Profile",
-  description: "View and edit your Medusa Store profile.",
+  title: "프로필",
+  description: "프로필 정보를 확인하고 수정하세요.",
 }
 
 export default async function Profile() {
@@ -24,11 +24,10 @@ export default async function Profile() {
   return (
     <div className="w-full" data-testid="profile-page-wrapper">
       <div className="mb-8 flex flex-col gap-y-4">
-        <h1 className="text-2xl-semi">Profile</h1>
+        <h1 className="text-2xl-semi">프로필</h1>
         <p className="text-base-regular">
-          View and update your profile information, including your name, email,
-          and phone number. You can also update your billing address, or change
-          your password.
+          이름, 이메일, 휴대폰 번호 등 프로필 정보를 확인하고 수정하세요.
+          청구지 주소도 함께 관리할 수 있어요.
         </p>
       </div>
       <div className="flex flex-col gap-y-8 w-full">
@@ -47,5 +46,5 @@ export default async function Profile() {
 }
 
 const Divider = () => {
-  return <div className="w-full h-px bg-gray-200" />
+  return <div className="w-full h-px bg-ui-border-base" />
 }

@@ -17,21 +17,21 @@ export default async function TransferPage({
       <div className="flex flex-col gap-y-6">
         {success && (
           <>
-            <Heading level="h1" className="text-xl text-zinc-900">
-              Order transfer declined!
+            <Heading level="h1" className="text-xl text-ui-fg-base">
+              주문 이전을 거절했어요
             </Heading>
-            <Text className="text-zinc-600">
-              Transfer of order {id} has been successfully declined.
+            <Text className="text-ui-fg-subtle">
+              주문 {id} 이전 요청을 거절했어요.
             </Text>
           </>
         )}
         {!success && (
           <>
-            <Text className="text-zinc-600">
-              There was an error declining the transfer. Please try again.
+            <Text className="text-ui-fg-subtle">
+              이전을 거절하는 중 오류가 발생했어요. 다시 시도해주세요.
             </Text>
             {error && (
-              <Text className="text-red-500">Error message: {error}</Text>
+              <Text className="text-ui-fg-error">오류: {error}</Text>
             )}
           </>
         )}

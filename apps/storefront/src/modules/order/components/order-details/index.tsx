@@ -14,11 +14,11 @@ const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
   }
 
   const fulfillmentStatusMap: Record<string, string> = {
-    not_fulfilled: "배송 준비 중",
-    partially_fulfilled: "일부 배송됨",
-    fulfilled: "배송 완료",
-    partially_shipped: "일부 출고",
-    shipped: "출고 완료",
+    not_fulfilled: "출고 준비 중",
+    partially_fulfilled: "일부 출고 처리",
+    fulfilled: "출고 처리 완료",
+    partially_shipped: "일부 발송",
+    shipped: "발송 완료",
     partially_delivered: "일부 배송 완료",
     delivered: "배송 완료",
     canceled: "취소됨",
@@ -42,14 +42,13 @@ const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
   return (
     <div>
       <Text>
-        주문 확인 정보를{" "}
+        주문 이메일:{" "}
         <span
           className="text-ui-fg-medium-plus font-semibold"
           data-testid="order-email"
         >
           {order.email}
         </span>
-        으로 보냈어요.
       </Text>
       <Text className="mt-2">
         주문일:{" "}

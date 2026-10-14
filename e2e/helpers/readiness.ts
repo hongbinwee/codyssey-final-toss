@@ -17,8 +17,8 @@ import { e2eEnv } from "../utils/env"
 //   GET /store/product-review-stats?product_ids=a,b
 //   → { stats:[{product_id,average_rating:null|number,review_count}] }
 //   유효 상품의 리뷰 없음은 review_count=0·average=null을 미리 반환.
-// 쓰기(fixture):
-//   POST /admin/product-reviews/import  (Admin 전용, max100, atomic)
+// 쓰기(fixture — Admin only, isolated env 9002만):
+//   POST /admin/product-reviews/import  (max 100, atomic)
 //   body { reviews:[{product_id,variant_id?,external_review_id,asin?,
 //     parent_asin?,title,body,rating:int 1..5,written_at:ISO,source,
 //     source_ref,is_synthetic,verified_purchase?,status:pending|
@@ -27,6 +27,10 @@ import { e2eEnv } from "../utils/env"
 // UI testid (02 지정): review-summary review-count review-average
 //   review-list review-item review-sort review-page-next review-empty
 //   product-review-summary
+//
+// 프로젝트별 fixture 분리(SOL 지시): fixture 상품·external_review_id에
+// project.name 접미사를 붙여 desktop/desktop-dark/mobile 간 누적 영향을
+// 차단한다. fixture 상품은 "<base>-<project>" handle로 해석한다.
 // ============================================================
 export const REVIEW_CONTRACT = {
   listPath: "/store/products/:id/reviews",
@@ -56,11 +60,10 @@ export const REVIEW_CONTRACT = {
   pendingValue: "pending",
   flaggedValue: "flagged",
   syntheticSourceValue: "synthetic",
-  // fixture 식별 — isolated env의 QA 전용 상품만 지정한다.
-  // main toss3days-* 상품에는 리뷰를 심지 않는다.
-  fixtureProductA: process.env.E2E_FIXTURE_PRODUCT_A ?? "",
-  fixtureProductB: process.env.E2E_FIXTURE_PRODUCT_B ?? "",
-  fixtureVariantA1: process.env.E2E_FIXTURE_VARIANT_A1 ?? "",
+  // fixture 상품 base handle — 실제 상품은 "<base>-<project>"로 해석.
+  // env는 base만 지정한다. 기본값은 SOL이 provision한 QA 상품 규약.
+  fixtureProductBaseA: process.env.E2E_FIXTURE_PRODUCT_A ?? "qa-fixture-a",
+  fixtureProductBaseB: process.env.E2E_FIXTURE_PRODUCT_B ?? "qa-fixture-b",
   ui: {
     summary: "review-summary",
     count: "review-count",
@@ -74,23 +77,12 @@ export const REVIEW_CONTRACT = {
   },
 } as const
 
-const REQUIRED_KEYS: (keyof typeof REVIEW_CONTRACT)[] = [
-  "fixtureProductA",
-  "fixtureProductB",
-]
+export const fixtureKey = (base: string, projectName: string): string =>
+  base + "-" + projectName
 
-const missingKeys = (): string[] =>
-  REQUIRED_KEYS.filter((k) => !REVIEW_CONTRACT[k])
-
-// 읽기 계약은 확정됐다 — fixture 상품 식별만 환경 의존이다.
 export const assertReviewContract = (): void => {
-  const missing = missingKeys()
-  if (missing.length > 0) {
-    throw new Error(
-      "[E2E] 리뷰 fixture 식별 env 미설정 — isolated env provision 후 설정: " +
-        missing.map((k) => "E2E_" + k.replace(/([A-Z])/g, "_$1").toUpperCase()).join(", ")
-    )
-  }
+  // 읽기 경로·필드는 확정됐다. fixture 상품 자체는 resolveProduct에서
+  // 실제 조회로 검증한다 — env 기본값이 있어 여기서 별도 가드는 없다.
 }
 
 export const assertReviewUiContract = (): void => {
@@ -106,6 +98,8 @@ export const assertSeedContract = (): void => {
   }
 }
 
+// variant 연결은 fixture 상품의 실제 variant로 해석한다 —
+// variants가 없는 상품이 지정되면 fixture 오류로 실패한다.
 export const assertVariantContract = (): void => {
   if (!REVIEW_CONTRACT.variantField) {
     throw new Error("[E2E] 리뷰 계약에 variant 필드가 없다")
@@ -114,12 +108,12 @@ export const assertVariantContract = (): void => {
 
 // ---- 리뷰 조회 헬퍼 ----------------------------------------------------
 
-export type ReviewSort = "latest" | "rating"
+export type ReviewSort = "latest" | "rating" | "rating_asc"
 
 export const listPublicReviews = async (
   productId: string,
   opts: {
-    sort?: ReviewSort | "rating_asc"
+    sort?: ReviewSort
     offset?: number
     limit?: number
     variantId?: string
@@ -156,7 +150,9 @@ export const reviewItemsOf = (res: ApiResult): Record<string, unknown>[] => {
 // 반환되므로 항목 부재는 "유효하지 않은 상품" 신호로 해석한다.
 export const getReviewStatsBatch = async (
   productIds: string[]
-): Promise<{ product_id: string; average_rating: number | null; review_count: number }[]> => {
+): Promise<
+  { product_id: string; average_rating: number | null; review_count: number }[]
+> => {
   const res = await storeApi(REVIEW_CONTRACT.statsPath, {
     query: { product_ids: productIds.join(",") },
   })

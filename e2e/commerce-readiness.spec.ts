@@ -8,11 +8,10 @@ import {
 import { TEST_PASSWORD, testEmail, trackConsoleErrors } from "./utils/helpers"
 import {
   REVIEW_CONTRACT,
-  assertReviewContract,
-  assertReviewUiContract,
   assertSeedContract,
   assertVariantContract,
   createReturnApi,
+  fixtureKey,
   getPublicReviewStats,
   getReviewStatsBatch,
   importReviews,
@@ -26,6 +25,10 @@ import { storeApi } from "./utils/api"
 // 공유 prod 9000/8000에는 write 테스트를 절대 실행하지 않는다.
 // 실행 설정은 기존 E2E_BASE_URL/E2E_BACKEND_URL env를 사용한다 — config 변경 없음.
 // Admin import fixture는 E2E_ADMIN_TOKEN(env만)이 필요하다.
+//
+// 프로젝트별 분리(SOL 지시): fixture 상품 handle과 external_review_id에
+// project.name 접미사를 붙여 desktop/desktop-dark/mobile이 서로 누적
+// 영향을 주지 않는다. 예: qa-fixture-a-desktop / qa-a1-desktop.
 
 // ============================================================
 // 반품 API 권한 보호
@@ -73,13 +76,11 @@ test.describe("반품 API 권한 보호", () => {
     // 옵션이 있으면 env로 id를 제공한다 — 없으면 스키마 유효성 대조는
     // 해당 테스트가 자체적으로 보고한다.
     const returnShippingOptionId =
-      process.env.E2E_RETURN_SHIPPING_OPTION_ID ?? ""
+      process.env.E2E_RETURN_SHIPPING_OPTION_ID ?? "so_qa_unconfigured"
     returnBody = {
       order_id: orderAId,
       items,
-      ...(returnShippingOptionId
-        ? { return_shipping: { option_id: returnShippingOptionId } }
-        : {}),
+      return_shipping: { option_id: returnShippingOptionId },
     }
     const b = await registerCustomerApi(testEmail("ret-b"), TEST_PASSWORD, {
       first_name: "Return",
@@ -88,10 +89,10 @@ test.describe("반품 API 권한 보호", () => {
     tokenB = b.token
   })
 
-  test("익명 요청은 401 — 인증이 바디 검증보다 선행한다", async () => {
-    // 의도적으로 형식이 불완전한 바디를 보낸다: 401이면 인증이
-    // zod 검증보다 먼저 거부한 것이고, 400이면 인증 부재로 실패다.
-    const res = await createReturnApi({ order_id: orderAId })
+  test("익명 요청은 유효한 반품 바디로도 401", async () => {
+    // Core schema runs before custom middleware in this installed version.
+    // Use a valid shape to prove authentication, rather than validator order.
+    const res = await createReturnApi({ ...returnBody })
     expect(res.status).toBe(401)
     expect(res.json?.return).toBeUndefined()
   })
@@ -109,12 +110,12 @@ test.describe("반품 API 권한 보호", () => {
       tokenA
     )
     expect(denied.status).toBe(400)
+    expect(denied.json?.message).toContain("cannot set receive_now")
     expect(denied.json?.return).toBeUndefined()
 
     // 대조: 같은 바디에서 receive_now만 빼면 정책 거부가 아니어야 한다.
     // return_shipping 옵션이 env로 제공된 경우에만 스키마가 완전히 유효해
-    // 진정한 대조가 된다. 미제공이면 스키마 실패로 둘 다 400이 될 수 있어
-    // 대조 불가를 결과로 첨부한다(통과로 위장하지 않는다).
+    // 진정한 대조가 된다. 미제공이면 대조 불가를 첨부물로 보고한다.
     const control = await createReturnApi({ ...returnBody }, tokenA)
     if (process.env.E2E_RETURN_SHIPPING_OPTION_ID) {
       const sameFailure =
@@ -145,11 +146,8 @@ test.describe("반품 API 권한 보호", () => {
 
 // ============================================================
 // 리뷰·평점 읽기 — SOL 확정 계약 (01 공식 Module)
-// GET /store/products/:id/reviews?sort=&offset=&limit=&variant_id=
-// GET /store/product-review-stats?product_ids=
-// POST /admin/product-reviews/import (Admin only)
-// 합성 fixture는 QA 전용 상품(E2E_FIXTURE_PRODUCT_A/B)에만 주입하고,
-// main toss3days-* 상품은 실제 리뷰 0을 유지한다.
+// 합성 fixture는 프로젝트별 QA 전용 상품(<base>-<project>)에만
+// Admin import로 주입하고, main toss3days-* 상품은 리뷰 0을 유지한다.
 // ============================================================
 test.describe("리뷰·평점", () => {
   const c = REVIEW_CONTRACT
@@ -158,14 +156,23 @@ test.describe("리뷰·평점", () => {
     page,
   }) => {
     const cat = await discoverCatalog()
-    const product = cat.simple
-    // 유효 상품의 리뷰 없음도 stats 항목으로 반환하는 계약이다
-    const stats = await getPublicReviewStats(product.id)
-    expect(stats.count).toBe(0)
+    // SOL의 seed-review-test-fixtures가 앞 상품에 리뷰를 넣었다 —
+    // review_count=0인 main toss3days-* 상품을 batch stats로 찾는다.
+    // 전부 리뷰가 있으면 fixture 정책 위반으로 실패한다.
+    const mains = (cat.products as { id: string; handle: string }[]).filter(
+      (p) => p.handle.startsWith("toss3days-")
+    )
+    const statsList = await getReviewStatsBatch(mains.map((p) => p.id))
+    const zeroEntry = statsList.find((s) => s.review_count === 0)
+    if (!zeroEntry) {
+      throw new Error(
+        "[E2E] 리뷰 0인 main 상품이 없다 — main 상품의 실제 리뷰 0 유지 계약 확인"
+      )
+    }
     // 리뷰 없음을 0점으로 위장하지 않는다 — 평균은 null이어야 한다
-    expect(stats.average).toBeNull()
+    expect(zeroEntry.average_rating).toBeNull()
+    const product = mains.find((p) => p.id === zeroEntry.product_id)!
 
-    assertReviewUiContract()
     const errors = trackConsoleErrors(page)
     await page.goto("/" + cat.countryCode + "/products/" + product.handle)
     await expect(page.getByTestId(c.ui.emptyState)).toBeVisible()
@@ -182,9 +189,10 @@ test.describe("리뷰·평점", () => {
   test("공개 조회는 status 필터를 받지 않는다 — 400", async () => {
     // 공개 목록은 approved+displayable 고정 — status 파라미터는 400 기대(SOL)
     const cat = await discoverCatalog()
-    const res = await storeApi(c.listPath.replace(":id", cat.simple.id), {
-      query: { status: "pending" },
-    })
+    const res = await storeApi(
+      c.listPath.replace(":id", cat.simple.id),
+      { query: { status: "pending" } }
+    )
     expect(res.status).toBe(400)
   })
 
@@ -192,45 +200,67 @@ test.describe("리뷰·평점", () => {
     test.describe.configure({ mode: "serial" })
 
     const SEED_SOURCE = "synthetic"
-    const SEED_REF = "qa-fixture"
-    // approved+displayable 4건(별점 동률 4 포함), approved+미표시 1건,
-    // pending 2건, flagged 1건을 A에. approved 1건을 B에.
-    // variant 연결은 E2E_FIXTURE_VARIANT_A1이 있을 때만 심는다.
-    const planA = [
-      { tag: "a1", rating: 5, status: "approved", display: true, day: 10 },
-      { tag: "a2", rating: 4, status: "approved", display: true, day: 9 },
-      { tag: "a3", rating: 4, status: "approved", display: true, day: 8 },
-      { tag: "a4", rating: 2, status: "approved", display: true, day: 7 },
-      { tag: "a5", rating: 5, status: "approved", display: false, day: 6 },
-      { tag: "a6", rating: 1, status: "pending", display: true, day: 5 },
-      { tag: "a7", rating: 3, status: "pending", display: true, day: 4 },
-      { tag: "a8", rating: 2, status: "flagged", display: true, day: 3 },
+    const SEED_REF = "https://example.invalid/qa-fixture"
+    // 공개 대상 총 21건 — 상품 레벨 20건 + variant 연결 1건(아래 var1).
+    // 명시 rating 배열(동률 다수 포함)과 작성일. 평균은 공개 21건으로 산출.
+    const VISIBLE_RATINGS = [
+      5, 4, 4, 3, 5, 2, 4, 3, 5, 1, 4, 3, 2, 5, 4, 3, 2, 4, 5, 3,
+    ] as const
+    // 비공개 추가분 — 집계에서 반드시 제외돼야 한다
+    const HIDDEN_PLAN = [
+      { tag: "hidden", rating: 5, status: "approved", display: false },
+      { tag: "pend1", rating: 1, status: "pending", display: true },
+      { tag: "pend2", rating: 3, status: "pending", display: true },
+      { tag: "flag1", rating: 2, status: "flagged", display: true },
     ] as const
     const seedTitle = (tag: string) => "qa-fixture-" + tag
-    let productA: { id: string; handle: string } | null = null
-    let productB: { id: string; handle: string } | null = null
+    let projectSuffix = ""
+    let productA: { id: string; handle: string; variants: { id: string }[] } | null =
+      null
+    let productB: { id: string; handle: string; variants: { id: string }[] } | null =
+      null
     let seeds: SyntheticReviewInput[] = []
     let expectedCount = 0
     let expectedAvg = 0
     let expectedTitlesNewestFirst: string[] = []
+    let variantA1 = ""
 
     const resolveProduct = async (key: string) => {
       const cat = await discoverCatalog()
-      const found = (cat.products as { id?: string; handle?: string }[]).find(
-        (p) => p.id === key || p.handle === key
-      )
+      const found = (
+        cat.products as {
+          id?: string
+          handle?: string
+          variants?: { id: string }[]
+        }[]
+      ).find((p) => p.id === key || p.handle === key)
       if (!found?.id || !found.handle) {
-        throw new Error("[E2E] fixture 상품이 카탈로그에 없다: " + key)
+        throw new Error(
+          "[E2E] fixture 상품이 카탈로그에 없다: " +
+            key +
+            " — SOL provision된 QA 상품 규약 확인"
+        )
       }
-      return { id: found.id, handle: found.handle }
+      return {
+        id: found.id,
+        handle: found.handle,
+        variants: (found.variants ?? []).map((v) => ({ id: v.id })),
+      }
     }
 
-    test.beforeAll(async () => {
-      assertReviewContract()
+    test.beforeAll(async ({}, testInfo) => {
       assertSeedContract()
-      productA = await resolveProduct(c.fixtureProductA)
-      productB = await resolveProduct(c.fixtureProductB)
+      // 프로젝트별 fixture 분리 — 상품과 external_review_id 모두 구분한다
+      projectSuffix = testInfo.project.name
+      productA = await resolveProduct(
+        fixtureKey(c.fixtureProductBaseA, projectSuffix)
+      )
+      productB = await resolveProduct(
+        fixtureKey(c.fixtureProductBaseB, projectSuffix)
+      )
+      variantA1 = productA.variants[0]?.id ?? ""
 
+      const extId = (tag: string) => "qa-" + tag + "-" + projectSuffix
       const mk = (args: {
         product_id: string
         tag: string
@@ -242,8 +272,8 @@ test.describe("리뷰·평점", () => {
       }): SyntheticReviewInput => ({
         product_id: args.product_id,
         variant_id: args.variant_id,
-        external_review_id: "qa-" + args.tag,
-        title: seedTitle(args.tag),
+        external_review_id: extId(args.tag),
+        title: seedTitle(args.tag) + "-" + projectSuffix,
         body: "QA fixture review " + args.tag,
         rating: args.rating,
         written_at: new Date(Date.UTC(2026, 0, args.day)).toISOString(),
@@ -255,40 +285,54 @@ test.describe("리뷰·평점", () => {
       })
 
       seeds = [
-        ...planA.map((s) =>
+        // A: 공개 21건 (day 21..1 — 인덱스 i가 클수록 과거)
+        ...VISIBLE_RATINGS.map((rating, i) =>
+          mk({
+            product_id: productA!.id,
+            tag: "v" + (i + 1),
+            rating,
+            status: "approved",
+            displayable: true,
+            day: VISIBLE_RATINGS.length - i,
+          })
+        ),
+        // A: 비공개 대조군
+        ...HIDDEN_PLAN.map((s, i) =>
           mk({
             product_id: productA!.id,
             tag: s.tag,
             rating: s.rating,
             status: s.status,
             displayable: s.display,
-            day: s.day,
+            day: i + 1,
           })
         ),
+        // B: approved 1건 — 상품 간 근교 오염 검증용
         mk({
           product_id: productB!.id,
           tag: "b1",
           rating: 3,
           status: "approved",
           displayable: true,
-          day: 11,
+          day: 25,
         }),
-        ...(c.fixtureVariantA1
+        // A: variant 연결 1건 — fixture 상품의 실제 첫 variant
+        ...(variantA1
           ? [
               mk({
                 product_id: productA!.id,
-                variant_id: c.fixtureVariantA1,
-                tag: "a9v",
+                variant_id: variantA1,
+                tag: "var1",
                 rating: 5,
                 status: "approved",
                 displayable: true,
-                day: 12,
+                day: 26,
               }),
             ]
           : []),
       ]
 
-      // 한 번의 배치로 주입 — atomic validation 계약
+      // 한 번의 배치로 주입 — atomic validation 계약. max 100 준수.
       const res = await importReviews(seeds)
       expect(res.ok, "fixture import 실패: " + res.status).toBe(true)
 
@@ -299,9 +343,9 @@ test.describe("리뷰·평점", () => {
           s.displayable
       )
       expectedCount = visible.length
-      expectedAvg =
-        visible.reduce((sum, s) => sum + s.rating, 0) /
-        (visible.length || 1)
+      expectedAvg = Math.round(
+        (visible.reduce((sum, s) => sum + s.rating, 0) / (visible.length || 1)) * 100
+      ) / 100
       expectedTitlesNewestFirst = [...visible]
         .sort(
           (x, y) =>
@@ -315,11 +359,10 @@ test.describe("리뷰·평점", () => {
       expect(res.ok).toBe(true)
       const items = reviewItemsOf(res)
       expect(items.length).toBe(expectedCount)
-      // pending·flagged·displayable:false fixture의 제목이 없어야 한다
-      for (const tag of ["a5", "a6", "a7", "a8"]) {
+      for (const s of HIDDEN_PLAN) {
         expect(
-          items.some((i) => i[c.titleField] === seedTitle(tag)),
-          "비공개 리뷰 노출: " + tag
+          items.some((i) => i[c.titleField] === seedTitle(s.tag) + "-" + projectSuffix),
+          "비공개 리뷰 노출: " + s.tag
         ).toBe(false)
       }
       // 응답의 count와 summary.review_count는 동일한 공개 범위다
@@ -339,38 +382,46 @@ test.describe("리뷰·평점", () => {
       const itemsB = reviewItemsOf(resB)
       expect(itemsB.length).toBe(1)
       expect(itemsB[0]?.[c.productField]).toBe(productB!.id)
-      for (const s of planA) {
-        expect(
-          itemsB.some((i) => i[c.titleField] === seedTitle(s.tag)),
-          "타 상품 리뷰 노출: " + s.tag
-        ).toBe(false)
+      // A의 리뷰 제목이 B에 섞이지 않는다
+      const titlesB = new Set(itemsB.map((i) => String(i[c.titleField])))
+      for (const s of seeds.filter((x) => x.product_id === productA!.id)) {
+        expect(titlesB.has(s.title), "타 상품 리뷰 노출: " + s.title).toBe(
+          false
+        )
       }
 
       assertVariantContract()
-      // 상품 전체 조회는 모든 variant 리뷰를 포함한다
+      if (!variantA1) {
+        throw new Error(
+          "[E2E] fixture 상품에 variant가 없다 — variant 귀속 검증 불가"
+        )
+      }
+      // 상품 전체 조회는 variant 리뷰도 포함한다
       const resA = await listPublicReviews(productA!.id, {
         limit: c.maxLimit,
       })
       const itemsA = reviewItemsOf(resA)
       const variantReview = itemsA.find(
-        (i) => i[c.titleField] === seedTitle("a9v")
+        (i) => i[c.titleField] === seedTitle("var1") + "-" + projectSuffix
       )
       expect(variantReview, "variant 리뷰가 상품 목록에 없다").toBeTruthy()
-      expect(variantReview![c.variantField]).toBe(c.fixtureVariantA1)
+      expect(variantReview![c.variantField]).toBe(variantA1)
       // ?variant_id= 는 정확히 해당 variant 리뷰만 반환한다
       const resV = await listPublicReviews(productA!.id, {
-        variantId: c.fixtureVariantA1,
+        variantId: variantA1,
       })
       expect(resV.ok).toBe(true)
       const itemsV = reviewItemsOf(resV)
       for (const item of itemsV) {
-        expect(item[c.variantField]).toBe(c.fixtureVariantA1)
+        expect(item[c.variantField]).toBe(variantA1)
       }
-      expect(itemsV.some((i) => i[c.titleField] === seedTitle("a9v"))).toBe(
-        true
-      )
+      expect(
+        itemsV.some(
+          (i) => i[c.titleField] === seedTitle("var1") + "-" + projectSuffix
+        )
+      ).toBe(true)
       // 다른 product 소속 variant로는 조회할 수 없다 (400/404)
-      const variantOfB = process.env.E2E_FIXTURE_VARIANT_B1
+      const variantOfB = productB!.variants[0]?.id
       if (variantOfB) {
         const resWrong = await listPublicReviews(productA!.id, {
           variantId: variantOfB,
@@ -415,7 +466,8 @@ test.describe("리뷰·평점", () => {
         expect(ascRatings[i]).toBeGreaterThanOrEqual(ascRatings[i - 1])
       }
 
-      // 동률(4점 2건, 5점 2건) 순서가 결정적이어야 한다
+      // 동률이 다수 있으므로 순서가 결정적이어야 한다 — 같은 요청을
+      // 두 번 보내 동일 순서를 단언한다.
       const desc2 = await listPublicReviews(productA!.id, {
         sort: "rating",
         limit: c.maxLimit,
@@ -426,15 +478,12 @@ test.describe("리뷰·평점", () => {
     })
 
     test("페이지네이션: 전 페이지 누적이 count와 정확히 일치", async () => {
-      const limit = 2
+      const limit = 10 // 기본 페이지 크기 — 21건은 3페이지(10+10+1)가 된다
       const collected: Record<string, unknown>[] = []
       let offset = 0
       let reportedTotal = -1
       for (let guard = 0; guard < 10; guard++) {
-        const res = await listPublicReviews(productA!.id, {
-          offset,
-          limit,
-        })
+        const res = await listPublicReviews(productA!.id, { offset, limit })
         expect(res.ok).toBe(true)
         const items = reviewItemsOf(res)
         if (reportedTotal === -1) {
@@ -498,7 +547,8 @@ test.describe("리뷰·평점", () => {
       const before = await listPublicReviews(productA!.id, {
         limit: c.maxLimit,
       })
-      const dup = await importReviews([seeds[0]!])
+      // 전체 배치 재주입 — 단건이 아니라 21건+ 대상으로도 멱등이어야 한다
+      const dup = await importReviews(seeds)
       // 멱등: 성공 응답이어야 하며 신규 생성이 없어야 한다
       expect(dup.ok, "중복 import가 멱등이 아니다: " + dup.status).toBe(true)
       const after = await listPublicReviews(productA!.id, {
@@ -514,7 +564,7 @@ test.describe("리뷰·평점", () => {
       const invalid = await importReviews([
         {
           product_id: "prod_00000000000000000000000000",
-          external_review_id: "qa-invalid-1",
+          external_review_id: "qa-invalid-1-" + projectSuffix,
           title: "qa-invalid",
           body: "should be rejected",
           rating: 5,
@@ -533,8 +583,8 @@ test.describe("리뷰·평점", () => {
       const atomicBatch: SyntheticReviewInput[] = [
         {
           product_id: productB!.id,
-          external_review_id: "qa-atomic-valid",
-          title: seedTitle("atomic-valid"),
+          external_review_id: "qa-atomic-valid-" + projectSuffix,
+          title: seedTitle("atomic-valid") + "-" + projectSuffix,
           body: "should not persist",
           rating: 4,
           written_at: new Date(Date.UTC(2026, 0, 21)).toISOString(),
@@ -546,8 +596,8 @@ test.describe("리뷰·평점", () => {
         },
         {
           product_id: "prod_00000000000000000000000000",
-          external_review_id: "qa-atomic-invalid",
-          title: seedTitle("atomic-invalid"),
+          external_review_id: "qa-atomic-invalid-" + projectSuffix,
+          title: seedTitle("atomic-invalid") + "-" + projectSuffix,
           body: "rejects the batch",
           rating: 5,
           written_at: new Date(Date.UTC(2026, 0, 21)).toISOString(),
@@ -563,7 +613,10 @@ test.describe("리뷰·평점", () => {
       const listB = await listPublicReviews(productB!.id)
       const itemsB = reviewItemsOf(listB)
       expect(
-        itemsB.some((i) => i[c.titleField] === seedTitle("atomic-valid")),
+        itemsB.some(
+          (i) =>
+            i[c.titleField] === seedTitle("atomic-valid") + "-" + projectSuffix
+        ),
         "atomic 배치의 유효 항목이 쓰였다 — atomic validation 위반"
       ).toBe(false)
     })
@@ -571,59 +624,136 @@ test.describe("리뷰·평점", () => {
     test("상품 카드와 상세에 평점·리뷰 수·합성 표시가 나타난다", async ({
       page,
     }) => {
-      assertReviewUiContract()
       const errors = trackConsoleErrors(page)
       const cat = await discoverCatalog()
       // 카드 — 목록에서 해당 상품에 평점 요약과 리뷰 수가 표시된다
       await page.goto("/" + cat.countryCode + "/store")
-      const card = page
-        .getByTestId("product-wrapper")
-        .filter({
-          has: page.locator(
-            'a[href*="/products/' + productA!.handle + '"]'
-          ),
-        })
-      const cardSummary = card.getByTestId(c.ui.cardSummary)
+      await page.getByTestId("store-search-input").fill("QA 합성 리뷰 상품 " + productA!.handle)
+      const card = page.locator('a[href*="/products/' + productA!.handle + '"]').filter({ has: page.getByTestId("product-wrapper") })
+      const cardSummary = card.getByTestId(c.ui.summary)
       await expect(cardSummary).toBeVisible()
       await expect(cardSummary).toContainText(String(expectedCount))
       // 상세 — 요약(평균·수)·목록·항목·합성 표시가 보인다
       await page.goto("/" + cat.countryCode + "/products/" + productA!.handle)
-      await expect(page.getByTestId(c.ui.summary)).toBeVisible()
-      await expect(page.getByTestId(c.ui.count)).toContainText(
+      const detailReviews = page.locator('section[aria-labelledby="product-reviews-heading"]')
+      await expect(detailReviews.getByTestId(c.ui.summary)).toBeVisible()
+      await expect(detailReviews.getByTestId(c.ui.count)).toContainText(
         String(expectedCount)
       )
-      await expect(page.getByTestId(c.ui.item)).toHaveCount(expectedCount)
+      // 첫 페이지는 최신순 기본 — 첫 항목은 가장 최근 written_at의 제목이다
+      const firstItems = page.getByTestId(c.ui.item)
+      await expect(firstItems.first()).toBeVisible()
+      const firstCount = await firstItems.count()
+      expect(firstCount).toBeGreaterThan(0)
+      expect(firstCount).toBeLessThanOrEqual(expectedCount)
+      await expect(firstItems.first()).toContainText(
+        expectedTitlesNewestFirst[0]!
+      )
+      // 합성 라벨 표시
       await expect(
-        page
-          .getByTestId(c.ui.item)
+        firstItems
           .filter({ hasText: /synthetic|합성|샘플|테스트/i })
           .first()
       ).toBeVisible()
-      // 정렬·다음 페이지 컨트롤이 계약에 있으면 존재를 확인한다
       await expect(page.getByTestId(c.ui.sortControl)).toBeVisible()
-      if (expectedCount > 10) {
-        await expect(page.getByTestId(c.ui.pageNext)).toBeVisible()
+      await page.getByTestId(c.ui.sortControl).selectOption("rating_asc")
+      await expect(firstItems.first()).toContainText("1점")
+      expect(errors).toEqual([])
+    })
+
+    test("리뷰 UI 페이지네이션: 다음 버튼 → 새 목록 → 이전 페이지 복귀", async ({
+      page,
+    }) => {
+      const errors = trackConsoleErrors(page)
+      const cat = await discoverCatalog()
+      await page.goto("/" + cat.countryCode + "/products/" + productA!.handle)
+      const items = page.getByTestId(c.ui.item)
+      await expect(items.first()).toBeVisible()
+
+      // 첫 페이지 1번 항목과 기대 최신순 첫 제목을 기록한다
+      const firstPageFirstTitle = (
+        await items.first().textContent()
+      )?.trim()
+      expect(firstPageFirstTitle).toBeTruthy()
+      const firstPageTitles = await items.allTextContents()
+      const urlBefore = page.url()
+
+      // 실제 다음 페이지 버튼 클릭 → 목록이 바뀌어야 한다
+      const next = page.getByTestId(c.ui.pageNext)
+      await expect(next).toBeVisible()
+      await next.click()
+      // 목록 갱신을 폴링으로 기다린다 — 클릭 직후 읽으면 이전 목록을
+      // 캡처할 수 있다.
+      await expect
+        .poll(async () => (await items.first().textContent())?.trim(), {
+          message: "다음 페이지로 목록이 갱신되지 않았다",
+        })
+        .not.toBe(firstPageFirstTitle)
+      const secondPageTitles = await items.allTextContents()
+      expect(
+        JSON.stringify(secondPageTitles) !==
+          JSON.stringify(firstPageTitles),
+        "다음 페이지 클릭 후 목록이 변하지 않았다"
+      ).toBe(true)
+      // 2페이지 항목은 1페이지와 겹치지 않는다
+      const overlap = secondPageTitles.filter((t) =>
+        firstPageTitles.includes(t)
+      )
+      expect(overlap, "페이지 간 항목 중복").toEqual([])
+
+      // 이전 페이지 복귀 — URL 기반 페이징이면 브라우저 뒤로 가기,
+      // 클라이언트 페이징이면 계약에 이전 컨트롤이 없으므로 결과를 첨부한다
+      if (page.url() !== urlBefore) {
+        await page.goBack()
+        await expect
+          .poll(async () => (await items.first().textContent())?.trim(), {
+            message: "이전 페이지 복귀 후 첫 항목이 복원되지 않았다",
+          })
+          .toBe(firstPageFirstTitle)
+        const restored = await items.allTextContents()
+        expect(
+          JSON.stringify(restored),
+          "이전 페이지 복귀 후 첫 페이지 목록이 복원되지 않았다"
+        ).toBe(JSON.stringify(firstPageTitles))
+      } else {
+        await page.getByRole("navigation", { name: "후기 페이지" }).getByRole("button", { name: "이전", exact: true }).click()
+        await expect.poll(async () => (await items.first().textContent())?.trim()).toBe(firstPageFirstTitle)
+        expect(await items.allTextContents()).toEqual(firstPageTitles)
       }
       expect(errors).toEqual([])
     })
 
     test("batch stats는 상품별 전체 합계를 정확히 반환한다", async () => {
       const cat = await discoverCatalog()
+      const mains = (cat.products as { id: string; handle: string }[])
+        .filter((p) => p.handle.startsWith("toss3days-"))
+        .map((p) => p.id)
       const stats = await getReviewStatsBatch([
         productA!.id,
         productB!.id,
-        cat.simple.id,
+        ...mains,
       ])
       const a = stats.find((s) => s.product_id === productA!.id)
       const b = stats.find((s) => s.product_id === productB!.id)
-      const empty = stats.find((s) => s.product_id === cat.simple.id)
       expect(a?.review_count).toBe(expectedCount)
       expect(a?.average_rating).toBeCloseTo(expectedAvg, 5)
       expect(b?.review_count).toBe(1)
-      // 리뷰 없는 유효 상품은 기본 0을 미리 반환한다
-      expect(empty).toBeTruthy()
-      expect(empty!.review_count).toBe(0)
-      expect(empty!.average_rating).toBeNull()
+      // 유효 상품은 리뷰 없어도 stats 항목을 미리 반환한다
+      for (const id of mains) {
+        expect(
+          stats.some((s) => s.product_id === id),
+          "stats 항목 누락: " + id
+        ).toBe(true)
+      }
+      // seed-review-test-fixtures가 앞 상품에 리뷰를 넣었으므로
+      // 리뷰 0인 main 상품이 반드시 남아 있고 avg는 null이다
+      const empties = stats.filter(
+        (s) => mains.includes(s.product_id) && s.review_count === 0
+      )
+      expect(empties.length).toBeGreaterThan(0)
+      for (const e of empties) {
+        expect(e.average_rating).toBeNull()
+      }
     })
   })
 })

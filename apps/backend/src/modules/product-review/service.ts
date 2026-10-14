@@ -51,7 +51,7 @@ class ProductReviewModuleService extends MedusaService({
           displayable: true,
           ...(variantId ? { variant_id: variantId } : {}),
         },
-        { select: ["product_id", "rating"], skip, take: PAGE_SIZE },
+        { select: ["product_id", "rating"], skip, take: PAGE_SIZE, order: { id: "ASC" } },
       )
       for (const review of reviews) {
         const bucket = totals.get(review.product_id) ?? { sum: 0, count: 0 }

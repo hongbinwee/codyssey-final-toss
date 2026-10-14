@@ -96,7 +96,19 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
   }
 
   res.status(200).json({
-    reviews,
+    reviews: reviews.map((review) => ({
+      id: review.id,
+      product_id: review.product_id,
+      variant_id: review.variant_id ?? null,
+      title: review.title || null,
+      body: review.body,
+      rating: review.rating,
+      written_at: review.written_at,
+      source: review.source,
+      source_ref: review.source_ref || null,
+      is_synthetic: review.is_synthetic,
+      verified_purchase: review.verified_purchase ?? null,
+    })),
     count,
     offset,
     limit,

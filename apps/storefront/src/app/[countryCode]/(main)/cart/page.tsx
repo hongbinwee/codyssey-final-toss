@@ -5,8 +5,8 @@ import { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 export const metadata: Metadata = {
-  title: "Cart",
-  description: "View your cart",
+  title: "장바구니",
+  description: "장바구니에 담긴 상품을 확인하세요",
 }
 
 export default async function Cart() {

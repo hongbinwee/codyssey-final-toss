@@ -14,7 +14,7 @@ type VariantWithPrice = HttpTypes.StoreProductVariant & {
 }
 
 export const getPricesForVariant = (variant: VariantWithPrice) => {
-  if (!variant?.calculated_price?.calculated_amount) {
+  if (variant?.calculated_price?.calculated_amount == null) {
     return null
   }
 
@@ -87,4 +87,17 @@ export function getProductPrice({
     cheapestPrice: cheapestPrice(),
     variantPrice: variantPrice(),
   }
+}
+
+/**
+ * A product only carries a region-scoped `calculated_price` when it can be
+ * bought in the active region/currency (e.g. EUR-only products return null
+ * under /kr). Catalog surfaces use this to hide non-purchasable items.
+ */
+export const hasRegionPrice = (product: HttpTypes.StoreProduct): boolean => {
+  if (!product || !product.id) {
+    return false
+  }
+
+  return !!getProductPrice({ product }).cheapestPrice
 }

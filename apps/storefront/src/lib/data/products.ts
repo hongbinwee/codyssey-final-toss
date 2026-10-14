@@ -1,6 +1,7 @@
 "use server"
 
 import { sdk } from "@lib/config"
+import { hasRegionPrice } from "@lib/util/get-product-price"
 import { OptionValueIds } from "@lib/util/product-option-filters"
 import { sortProducts } from "@lib/util/sort-products"
 import { HttpTypes } from "@medusajs/types"
@@ -119,7 +120,7 @@ export const listProductsWithSort = async ({
   )
 
   const {
-    response: { products },
+    response: { products: fetchedProducts },
   } = await listProducts({
     pageParam: 0,
     queryParams: {
@@ -129,6 +130,10 @@ export const listProductsWithSort = async ({
     },
     countryCode,
   })
+
+  // Products without a region-scoped price (e.g. seeded EUR-only items under
+  // /kr) cannot be purchased, so they are excluded from the catalog.
+  const products = fetchedProducts.filter(hasRegionPrice)
 
   const sortedProducts = sortProducts(products, sortBy)
 

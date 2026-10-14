@@ -67,3 +67,10 @@
 ## 검증
 
 실제 브라우저 구매 흐름·옵션·수량·품절·배송비·주문 조회, 한국어, KRW, 모바일/데스크톱과 Light/Dark/System을 확인한다. 새 테이블·금액 계산·자체 주문 API 추가 없이 기존 Storefront를 변경한다.
+
+## 구현 메모
+
+- [Project] 폰트 출처: Pretendard Variable v1.3.9 (SIL OFL 1.1, orioncactus/pretendard), jsdelivr CDN dynamic-subset을 root layout의 <link>로 로드한다. 시스템 스택 fallback은 tailwind.config.js에 있다.
+- [Project] 테마 저장 키는 `3days-theme`(light|dark|system)이며, 첫 페인트 전 적용하는 인라인 스크립트와 ThemeSelect 컴포넌트가 공유한다. localStorage 접근은 try/catch로 감싼다.
+- [Project] KRW는 `convertToLocale`에서 ko-KR·0자리로 "12,000원" 형태로 표기한다. 다른 통화는 기존 형식을 유지한다.
+- [Project] 지역 통화의 `calculated_price`가 없는 상품(예: /kr에서 EUR 전용 시드 상품)은 구매 불가로 간주해 홈·관련 상품·카테고리/컬렉션 목록·검색 결과에서 제외한다. 상품 자체는 삭제하지 않는다.

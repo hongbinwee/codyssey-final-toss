@@ -13,7 +13,11 @@ import {
 
 import useSearchSettled from "@lib/hooks/use-search-settled"
 import useToggleState from "@lib/hooks/use-toggle-state"
-import { PRODUCT_INDEX_NAME, searchClient } from "@lib/search-client"
+import {
+  priceAttribute,
+  PRODUCT_INDEX_NAME,
+  searchClient,
+} from "@lib/search-client"
 import { Text } from "@modules/common/components/ui"
 import SearchDrawer from "./drawer"
 import SearchHit, { ProductHit } from "./hit"
@@ -56,8 +60,8 @@ const SearchPanel = ({ onNavigate }: { onNavigate: () => void }) => {
             setInputValue(event.target.value)
             refine(event.target.value)
           }}
-          placeholder="Search products"
-          aria-label="Search products"
+          placeholder="상품을 검색해보세요"
+          aria-label="상품 검색"
           autoFocus
           className="txt-medium w-full bg-transparent py-4 text-ui-fg-base outline-none placeholder:text-ui-fg-muted"
           data-testid="search-input"
@@ -70,14 +74,14 @@ const SearchPanel = ({ onNavigate }: { onNavigate: () => void }) => {
             className="px-4 py-6 text-center text-ui-fg-muted"
             data-testid="search-empty"
           >
-            Start typing to search for products.
+            검색어를 입력해주세요
           </Text>
         ) : status === "error" ? (
           <Text
             className="px-4 py-6 text-center text-ui-fg-error"
             data-testid="search-error"
           >
-            Couldn&apos;t search products
+            검색 중 문제가 생겼어요. 다시 시도해주세요
             {error?.message ? `: ${error.message}` : "."}
           </Text>
         ) : !isSettled ? (
@@ -85,7 +89,7 @@ const SearchPanel = ({ onNavigate }: { onNavigate: () => void }) => {
             className="px-4 py-6 text-center text-ui-fg-muted"
             data-testid="search-loading"
           >
-            Searching&hellip;
+            검색 중…
           </Text>
         ) : hasResults ? (
           <ul className="py-2" data-testid="search-results">
@@ -98,14 +102,14 @@ const SearchPanel = ({ onNavigate }: { onNavigate: () => void }) => {
             className="px-4 py-6 text-center text-ui-fg-muted"
             data-testid="search-loading"
           >
-            Searching&hellip;
+            검색 중…
           </Text>
         ) : (
           <Text
             className="px-4 py-6 text-center text-ui-fg-subtle"
             data-testid="search-no-results"
           >
-            No products found for &quot;{query}&quot;
+            &quot;{query}&quot;에 대한 검색 결과가 없어요
           </Text>
         )}
       </div>
@@ -113,7 +117,7 @@ const SearchPanel = ({ onNavigate }: { onNavigate: () => void }) => {
   )
 }
 
-const Search = () => {
+const Search = ({ currencyCode }: { currencyCode: string }) => {
   const { state: isOpen, open, close } = useToggleState()
 
   return (
@@ -121,7 +125,7 @@ const Search = () => {
       <button
         type="button"
         onClick={open}
-        aria-label="Search products"
+        aria-label="상품 검색"
         className="flex items-center hover:text-ui-fg-base"
         data-testid="nav-search-button"
       >
@@ -134,7 +138,12 @@ const Search = () => {
           searchClient={searchClient as unknown as SearchClient}
           future={{ preserveSharedStateOnUnmount: true }}
         >
-          <Configure hitsPerPage={HITS_PER_PAGE} />
+          <Configure
+            hitsPerPage={HITS_PER_PAGE}
+            numericFilters={[
+              `${priceAttribute("min_price", currencyCode)} >= 0`,
+            ]}
+          />
           <SearchPanel onNavigate={close} />
         </InstantSearch>
       </SearchDrawer>

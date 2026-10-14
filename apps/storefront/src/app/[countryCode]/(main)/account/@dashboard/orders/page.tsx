@@ -7,8 +7,8 @@ import Divider from "@modules/common/components/divider"
 import TransferRequestForm from "@modules/account/components/transfer-request-form"
 
 export const metadata: Metadata = {
-  title: "Orders",
-  description: "Overview of your previous orders.",
+  title: "주문 내역",
+  description: "지난 주문과 진행 상태를 확인하세요.",
 }
 
 export default async function Orders() {
@@ -21,10 +21,10 @@ export default async function Orders() {
   return (
     <div className="w-full" data-testid="orders-page-wrapper">
       <div className="mb-8 flex flex-col gap-y-4">
-        <h1 className="text-2xl-semi">Orders</h1>
+        <h1 className="text-2xl-semi">주문 내역</h1>
         <p className="text-base-regular">
-          View your previous orders and their status. You can also create
-          returns or exchanges for your orders if needed.
+          지난 주문과 진행 상태를 확인하세요. 필요하면 반품이나 교환도
+          요청할 수 있어요.
         </p>
       </div>
       <div>

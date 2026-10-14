@@ -28,7 +28,7 @@ const Summary = ({ cart }: SummaryProps) => {
   return (
     <div className="flex flex-col gap-y-4">
       <Heading level="h2" className="text-[2rem] leading-[2.75rem]">
-        Summary
+        주문 요약
       </Heading>
       <DiscountCode cart={cart} />
       <Divider />
@@ -37,7 +37,7 @@ const Summary = ({ cart }: SummaryProps) => {
         href={"/checkout?step=" + step}
         data-testid="checkout-button"
       >
-        <Button className="w-full h-10">Go to checkout</Button>
+        <Button className="w-full h-[52px] rounded-xl text-base font-semibold">주문하기</Button>
       </LocalizedClientLink>
     </div>
   )

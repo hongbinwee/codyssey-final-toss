@@ -25,6 +25,15 @@ export type CustomerAuthState =
   | { state: "success" }
   | null
 
+const getSafeReturnTo = (formData: FormData) => {
+  const returnTo = formData.get("returnTo")
+
+  return typeof returnTo === "string" &&
+    /^\/[a-z]{2}\/checkout$/.test(returnTo)
+    ? returnTo
+    : null
+}
+
 // Requests a verification email for the given customer. The request must be
 // authenticated with a token tied to the auth identity (the token returned by
 // register or by a login that requires verification).
@@ -88,6 +97,7 @@ export async function signup(
   _currentState: unknown,
   formData: FormData
 ): Promise<CustomerAuthState> {
+  const returnTo = getSafeReturnTo(formData)
   const password = formData.get("password") as string
   const customerForm = {
     email: formData.get("email") as string,
@@ -121,17 +131,30 @@ export async function signup(
 
   // Continue by logging in. The login response tells us whether the backend
   // requires email verification — we don't need a storefront-side flag.
-  return completeLogin(customerForm.email, password)
+  const result = await completeLogin(customerForm.email, password)
+
+  if (result?.state === "success" && returnTo) {
+    redirect(returnTo)
+  }
+
+  return result
 }
 
 export async function login(
   _currentState: unknown,
   formData: FormData
 ): Promise<CustomerAuthState> {
+  const returnTo = getSafeReturnTo(formData)
   const email = formData.get("email") as string
   const password = formData.get("password") as string
 
-  return completeLogin(email, password)
+  const result = await completeLogin(email, password)
+
+  if (result?.state === "success" && returnTo) {
+    redirect(returnTo)
+  }
+
+  return result
 }
 
 // Logs the customer in and reconciles the customer record. The behavior is

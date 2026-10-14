@@ -2,6 +2,7 @@ import { listProducts } from "@lib/data/products"
 import { getRegion } from "@lib/data/regions"
 import { HttpTypes } from "@medusajs/types"
 import Product from "../product-preview"
+import { hasRegionPrice } from "@lib/util/get-product-price"
 
 type RelatedProductsProps = {
   product: HttpTypes.StoreProduct
@@ -38,7 +39,8 @@ export default async function RelatedProducts({
     countryCode,
   }).then(({ response }) => {
     return response.products.filter(
-      (responseProduct) => responseProduct.id !== product.id
+      (responseProduct) =>
+        responseProduct.id !== product.id && hasRegionPrice(responseProduct)
     )
   })
 
@@ -49,11 +51,11 @@ export default async function RelatedProducts({
   return (
     <div className="product-page-constraint">
       <div className="flex flex-col items-center text-center mb-16">
-        <span className="text-base-regular text-gray-600 mb-6">
-          Related products
+        <span className="text-base-regular text-ui-fg-subtle mb-6">
+          함께 보면 좋은 상품
         </span>
         <p className="text-2xl-regular text-ui-fg-base max-w-lg">
-          You might also want to check out these products.
+          이 상품도 마음에 드실 거예요.
         </p>
       </div>
 

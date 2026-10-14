@@ -2,6 +2,148 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
+/* 3days 쇼핑 디자인 토큰 (docs/DESIGN_SYSTEM.md).
+   Medusa UI 프리셋 변수를 이 프로젝트 값으로 덮어쓴다. */
+@layer base {
+  :root {
+    --bg-base: #ffffff;
+    --bg-base-hover: #f2f4f6;
+    --bg-base-pressed: #e5e8eb;
+    --bg-subtle: #f4f6f8;
+    --bg-subtle-hover: #eceff2;
+    --bg-subtle-pressed: #e5e8eb;
+    --bg-component: #f2f4f6;
+    --bg-component-hover: #e9edf0;
+    --bg-component-pressed: #e5e8eb;
+    --bg-field: #f2f4f6;
+    --bg-field-hover: #e9edf0;
+    --bg-field-component: #ffffff;
+    --bg-field-component-hover: #f8f9fa;
+    --bg-disabled: #f2f4f6;
+    --bg-interactive: #3182f6;
+    --bg-highlight: #e8f3ff;
+    --bg-highlight-hover: #dbebfd;
+    --bg-overlay: rgba(23, 22, 25, 0.4);
+
+    --fg-base: #191f28;
+    --fg-subtle: #4e5968;
+    --fg-muted: #8b95a1;
+    --fg-disabled: #b0b8c1;
+    --fg-interactive: #3182f6;
+    --fg-interactive-hover: #2272eb;
+    --fg-error: #d92d3a;
+    --fg-on-color: #ffffff;
+    --fg-on-inverted: #ffffff;
+
+    --border-base: #e5e8eb;
+    --border-strong: #d5d9de;
+    --border-interactive: #3182f6;
+    --border-error: #d92d3a;
+    --border-danger: #c93340;
+    --border-menu-top: #e5e8eb;
+    --border-menu-bot: #ffffff;
+
+    --button-neutral: #ffffff;
+    --button-neutral-hover: #f2f4f6;
+    --button-neutral-pressed: #e5e8eb;
+    --button-inverted: #191f28;
+    --button-inverted-hover: #2c333d;
+    --button-inverted-pressed: #3a414c;
+    --button-transparent-hover: rgba(25, 31, 40, 0.06);
+    --button-transparent-pressed: rgba(25, 31, 40, 0.1);
+    --button-danger: #d92d3a;
+    --button-danger-hover: #c42734;
+    --button-danger-pressed: #ad2130;
+
+    --tag-red-text: #d92d3a;
+    --tag-red-bg: #fdecef;
+    --tag-red-border: #f7c5cc;
+    --tag-red-icon: #d92d3a;
+    --tag-green-text: #07834a;
+    --tag-green-bg: #e6f6ee;
+    --tag-green-border: #b3e6cd;
+    --tag-blue-text: #2272eb;
+    --tag-blue-bg: #e8f3ff;
+    --tag-blue-border: #c3dffc;
+  }
+
+  .dark {
+    --bg-base: #202024;
+    --bg-base-hover: #2a2a30;
+    --bg-base-pressed: #303037;
+    --bg-subtle: #171619;
+    --bg-subtle-hover: #1c1c21;
+    --bg-subtle-pressed: #202024;
+    --bg-component: #24252a;
+    --bg-component-hover: #2c2d33;
+    --bg-component-pressed: #323338;
+    --bg-field: #24252a;
+    --bg-field-hover: #2c2d33;
+    --bg-field-component: #24252a;
+    --bg-field-component-hover: #2c2d33;
+    --bg-disabled: #2a2a30;
+    --bg-interactive: #2975f4;
+    --bg-highlight: #22345c;
+    --bg-highlight-hover: #2a4068;
+    --bg-overlay: rgba(10, 10, 12, 0.62);
+
+    --fg-base: #f0f0f2;
+    --fg-subtle: #b0b4bd;
+    --fg-muted: #8b95a1;
+    --fg-disabled: #585b63;
+    --fg-interactive: #66a3ff;
+    --fg-interactive-hover: #8bb8ff;
+    --fg-error: #ff6b78;
+    --fg-on-color: #ffffff;
+    --fg-on-inverted: #191f28;
+
+    --border-base: #2e2e33;
+    --border-strong: #3a3a41;
+    --border-interactive: #2975f4;
+    --border-error: #ff6b78;
+    --border-danger: #d9324a;
+    --border-menu-top: #2e2e33;
+    --border-menu-bot: #202024;
+
+    --button-neutral: rgba(255, 255, 255, 0.06);
+    --button-neutral-hover: rgba(255, 255, 255, 0.1);
+    --button-neutral-pressed: rgba(255, 255, 255, 0.14);
+    --button-inverted: #f0f0f2;
+    --button-inverted-hover: #ffffff;
+    --button-inverted-pressed: #d8d8dd;
+    --button-transparent-hover: rgba(255, 255, 255, 0.08);
+    --button-transparent-pressed: rgba(255, 255, 255, 0.12);
+    --button-danger: #d9324a;
+    --button-danger-hover: #e54058;
+    --button-danger-pressed: #b82940;
+
+    --tag-red-text: #ff8d98;
+    --tag-red-bg: rgba(237, 44, 59, 0.16);
+    --tag-red-border: rgba(237, 44, 59, 0.32);
+    --tag-red-icon: #ff8d98;
+    --tag-green-text: #4bd69b;
+    --tag-green-bg: rgba(3, 178, 108, 0.14);
+    --tag-green-border: rgba(3, 178, 108, 0.3);
+    --tag-blue-text: #8bb8ff;
+    --tag-blue-bg: #22345c;
+    --tag-blue-border: #2c4a7c;
+  }
+
+  body {
+    word-break: keep-all;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
 @layer utilities {
   /* Chrome, Safari and Opera */
   .no-scrollbar::-webkit-scrollbar {
@@ -41,6 +183,21 @@
     transition: background-color 5000s ease-in-out 0s;
   }
 
+  .dark input:-webkit-autofill,
+  .dark input:-webkit-autofill:hover,
+  .dark input:-webkit-autofill:focus,
+  .dark textarea:-webkit-autofill,
+  .dark textarea:-webkit-autofill:hover,
+  .dark textarea:-webkit-autofill:focus,
+  .dark select:-webkit-autofill,
+  .dark select:-webkit-autofill:hover,
+  .dark select:-webkit-autofill:focus {
+    border: 1px solid #f0f0f2;
+    -webkit-text-fill-color: #f0f0f2;
+    -webkit-box-shadow: 0 0 0px 1000px #24252a inset;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
   input[type="search"]::-webkit-search-decoration,
   input[type="search"]::-webkit-search-cancel-button,
   input[type="search"]::-webkit-search-results-button,
@@ -55,7 +212,7 @@
   }
 
   .contrast-btn {
-    @apply px-4 py-2 border border-black rounded-full hover:bg-black hover:text-white transition-colors duration-200 ease-in;
+    @apply px-4 py-2 border border-ui-fg-base text-ui-fg-base rounded-full hover:bg-ui-fg-base hover:text-ui-bg-base transition-colors duration-200 ease-in;
   }
 
   .text-xsmall-regular {

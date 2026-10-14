@@ -4,6 +4,7 @@ import type { Hit } from "instantsearch.js"
 import { useEffect, useRef } from "react"
 import { useHits, useInstantSearch } from "react-instantsearch"
 
+import { priceAttribute } from "@lib/search-client"
 import useSearchSettled from "@lib/hooks/use-search-settled"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { Text } from "@modules/common/components/ui"
@@ -54,7 +55,7 @@ const StoreHits = ({ hitsPerPage, currencyCode }: StoreHitsProps) => {
         className="py-16 text-center text-ui-fg-error"
         data-testid="products-error"
       >
-        Couldn&apos;t load products
+        상품을 불러오지 못했어요. 다시 시도해주세요
         {error?.message ? `: ${error.message}` : "."}
       </Text>
     )
@@ -69,7 +70,7 @@ const StoreHits = ({ hitsPerPage, currencyCode }: StoreHitsProps) => {
           className="py-16 text-center text-ui-fg-subtle"
           data-testid="no-products"
         >
-          No products matched these filters.
+          조건에 맞는 상품이 없어요
         </Text>
       ) : (
         <ul
@@ -77,17 +78,19 @@ const StoreHits = ({ hitsPerPage, currencyCode }: StoreHitsProps) => {
           data-testid="products-list"
         >
           {items.map((hit) =>
-            hit.handle ? (
+            hit.handle &&
+            typeof hit[priceAttribute("min_price", currencyCode)] ===
+              "number" ? (
               <li key={hit.objectID}>
                 <LocalizedClientLink
                   href={`/products/${hit.handle}`}
                   className="group"
                 >
                   <div data-testid="product-wrapper">
-                    <Thumbnail thumbnail={hit.thumbnail} size="full" />
-                    <div className="flex txt-compact-medium mt-4 justify-between">
+                  <Thumbnail thumbnail={hit.thumbnail} size="square" />
+                  <div className="mt-3 flex flex-col gap-y-1">
                       <Text
-                        className="text-ui-fg-subtle"
+                      className="text-ui-fg-base line-clamp-2 text-sm leading-5"
                         data-testid="product-title"
                       >
                         {hit.title}

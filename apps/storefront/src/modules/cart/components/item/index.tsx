@@ -22,6 +22,7 @@ type ItemProps = {
 
 const Item = ({ item, type = "full", currencyCode }: ItemProps) => {
   const [updating, setUpdating] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const changeQuantity = async (quantity: number) => {
@@ -75,12 +76,18 @@ const Item = ({ item, type = "full", currencyCode }: ItemProps) => {
       {type === "full" && (
         <Table.Cell>
           <div className="flex gap-2 items-center w-28">
-            <DeleteButton id={item.id} data-testid="product-delete-button">
+            <DeleteButton
+              id={item.id}
+              disabled={updating}
+              onDeletingChange={setDeleting}
+              data-testid="product-delete-button"
+            >
               삭제
             </DeleteButton>
             <CartItemSelect
               value={item.quantity}
               onChange={(value) => changeQuantity(parseInt(value.target.value))}
+              disabled={updating || deleting}
               className="w-14 h-10 p-4"
               data-testid="product-select-button"
             >

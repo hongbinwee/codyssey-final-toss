@@ -2,6 +2,13 @@
 
 import type { SearchClient } from "instantsearch.js"
 import { Configure, InstantSearch } from "react-instantsearch"
+import { useMemo } from "react"
+
+import {
+  parseSearchParams,
+  type InstantSearchRequest,
+  type SearchClient as AdapterSearchClient,
+} from "@medusajs/instantsearch-adapter"
 
 import {
   priceAttribute,
@@ -14,7 +21,51 @@ import StoreSearchBox from "@modules/store/components/store-search-box"
 
 const PRODUCT_LIMIT = 12
 
+// Keep this bound out of Configure.numericFilters: PriceRange manages the same
+// attribute through useRange.
+const addPriceAvailabilityFilter = (
+  request: InstantSearchRequest,
+  currencyCode: string
+): InstantSearchRequest => {
+  const params = parseSearchParams(request.params)
+  const numericFilters = params.numericFilters
+
+  return {
+    ...request,
+    params: {
+      ...params,
+      numericFilters: [
+        `${priceAttribute("min_price", currencyCode)}>=0`,
+        ...(Array.isArray(numericFilters)
+          ? numericFilters
+          : numericFilters
+            ? [numericFilters]
+            : []),
+      ],
+    },
+  }
+}
+
 const StoreTemplate = ({ currencyCode }: { currencyCode: string }) => {
+  const filteredSearchClient = useMemo<AdapterSearchClient>(
+    () => ({
+      ...searchClient,
+      search: (requests) =>
+        searchClient.search(
+          requests.map((request) =>
+            addPriceAvailabilityFilter(request, currencyCode)
+          )
+        ),
+      searchForFacetValues: (requests) =>
+        searchClient.searchForFacetValues(
+          requests.map((request) =>
+            addPriceAvailabilityFilter(request, currencyCode)
+          )
+        ),
+    }),
+    [currencyCode]
+  )
+
   return (
     <div className="py-6 content-container" data-testid="category-container">
       <div className="mb-8 text-2xl-semi">
@@ -24,16 +75,11 @@ const StoreTemplate = ({ currencyCode }: { currencyCode: string }) => {
       <div className="flex flex-col small:flex-row small:items-start">
         <InstantSearch
           indexName={PRODUCT_INDEX_NAME}
-          searchClient={searchClient as unknown as SearchClient}
+          searchClient={filteredSearchClient as unknown as SearchClient}
           routing
           future={{ preserveSharedStateOnUnmount: true }}
         >
-          <Configure
-            hitsPerPage={PRODUCT_LIMIT}
-            numericFilters={[
-              `${priceAttribute("min_price", currencyCode)} >= 0`,
-            ]}
-          />
+          <Configure hitsPerPage={PRODUCT_LIMIT} />
           <StoreRefinements currencyCode={currencyCode} />
           <div className="w-full min-w-0">
             <StoreSearchBox />

@@ -5,6 +5,7 @@ import medusaError from "@lib/util/medusa-error"
 import { HttpTypes } from "@medusajs/types"
 import { revalidateTag } from "next/cache"
 import { redirect } from "next/navigation"
+import { retrieveCustomer } from "./customer"
 import {
   getAuthHeaders,
   getCacheOptions,
@@ -395,12 +396,42 @@ export async function placeOrder(cartId?: string) {
   const id = cartId || (await getCartId())
 
   if (!id) {
-    throw new Error("No existing cart found when placing an order")
+    throw new Error("주문할 장바구니를 찾을 수 없습니다.")
   }
 
-  const headers = {
-    ...(await getAuthHeaders()),
+  const [customer, authHeaders] = await Promise.all([
+    retrieveCustomer(),
+    getAuthHeaders(),
+  ])
+
+  if (!customer) {
+    throw new Error("로그인한 고객만 주문할 수 있습니다.")
   }
+
+  const cart = await sdk.client
+    .fetch<HttpTypes.StoreCartResponse>(
+      `/store/carts/${encodeURIComponent(id)}`,
+      {
+        method: "GET",
+        query: { fields: "id,customer_id" },
+        headers: { ...authHeaders },
+        cache: "no-store",
+      }
+    )
+    .then(({ cart }) => cart)
+    .catch(() => null)
+
+  if (!cart) {
+    throw new Error(
+      "장바구니를 확인할 수 없습니다. 새로고침 후 다시 시도해주세요."
+    )
+  }
+
+  if (cart.customer_id !== customer.id) {
+    throw new Error("현재 계정에 연결된 장바구니가 아닙니다.")
+  }
+
+  const headers = { ...authHeaders }
 
   const cartRes = await sdk.store.cart
     .complete(id, {}, headers)

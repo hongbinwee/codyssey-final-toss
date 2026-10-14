@@ -47,12 +47,11 @@ test.describe("상품 탐색", () => {
         .first()
     ).toBeVisible()
     await expect(page.getByTestId("products-error")).toHaveCount(0)
-    expect(
-      await page
-        .getByTestId("products-list")
-        .getByTestId("product-wrapper")
-        .count()
-    ).toBeGreaterThan(0)
+    const productWrappers = page
+      .getByTestId("products-list")
+      .getByTestId("product-wrapper")
+    await expect(productWrappers.first()).toBeVisible({ timeout: 20_000 })
+    await expect.poll(() => productWrappers.count()).toBeGreaterThan(0)
     expect(errors).toEqual([])
   })
 

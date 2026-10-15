@@ -7,7 +7,12 @@ import {
 } from "./utils/api"
 import { trackConsoleErrors } from "./utils/helpers"
 import { e2eEnv } from "./utils/env"
-import { getReviewStatsBatch } from "./helpers/readiness"
+import {
+  assertReadinessEnvironment,
+  getReviewStatsBatch,
+} from "./helpers/readiness"
+// 카트 write 포함 — isolated env(9002/8002) 이외 실행을 모듈 수준에서 차단한다
+assertReadinessEnvironment()
 
 // ============================================================
 // 조건 검색 → 비교 → 구매 (TDD RED — 01 endpoint / 02 UI 머지 전)
@@ -347,13 +352,15 @@ test.describe("조건 검색 API", () => {
     expect(all.ok).toBe(true)
     const allResults = resultsOf(all)
     const retroEntry = allResults.find((r) => r.product_id === retro.id)
-    // 품절 상품도 결과에 나올 수 있으나 purchasable=false로 표시돼야 한다
-    if (retroEntry) {
-      expect(
-        purchasableOf(retroEntry),
-        "품절 상품의 purchasable=false 표시가 없다"
-      ).toBe(false)
-    }
+    // 품절 상품이 결과에 반드시 존재하고 purchasable=false로 표시돼야 한다
+    expect(
+      retroEntry,
+      "in_stock_only 없는 결과에 품절 상품(keyboard-retro)이 없다"
+    ).toBeTruthy()
+    expect(
+      purchasableOf(retroEntry),
+      "품절 상품의 purchasable=false 표시가 없다"
+    ).toBe(false)
 
     const inStock = await conditionSearch({
       region_id: regionId,

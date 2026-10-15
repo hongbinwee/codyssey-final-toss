@@ -4,15 +4,17 @@
 
 ## 종료 후 복구 검증 — 2026-10-15
 
-- 기존 기능을 다시 개발하지 않았다. 원격 기준은 `546896e`; 로컬 HEAD는 중단 전 기준점에 남아 있고 origin/main 이력은 fetch로 확보했다. 작업 파일은 원격 기능 코드와 동일하며 문서·QA 보완만 변경됐다. 로컬 기준점 직접 변경은 자동 검토에서 거부되어 실행하지 않았다.
+- 기존 기능을 다시 개발하지 않았다. 검증한 서비스 코드 기준은 `546896e`다. 사용자 승인 후 staged 변경 0건을 확인하고 미커밋·미추적 파일 5,979개 및 Git index·refs를 비공개로 백업했다. 작업 파일을 덮어쓰지 않고 로컬 main을 원격 이력과 fast-forward로 동기화했다. 기존 Worker 브랜치·Worktree·로컬 증거를 보존했다.
 - 기본 실행기의 pnpm 11.25.0과 기존 의존성의 pnpm 10.11.1 불일치를 확인했다. 이미 설치된 pnpm 10.11.1 및 기존 Node 24.15.0/CLI를 재사용했다. Windows 샌드박스 EPERM은 동일 명령의 승인된 실행으로 해소했다. 강제 설치·node_modules 삭제·lockfile 변경은 없었다.
 - 종료된 Docker Desktop과 기존 PostgreSQL 컨테이너·볼륨을 재시작했다. 격리 QA DB만 테스트 대상으로 확인했다. 이번 복구에서 migration·seed는 실행하지 않았다.
 - **이번 새 실행**: Backend/Admin `medusa build` exit0(Backend 26.30초, Admin 66.41초); lint 0 errors/29 warnings. Next 15.5.24 production build exit0(compile·타입검사·정적 페이지6/6). 별도 Backend·Storefront `tsc --noEmit --incremental false` 각각 exit0. Backend unit 54/54(6 suites), 실패0.
 - **이번 새 실행**: 전체 production E2E 156/156, 126.17초, 실패·skip·flaky0. 기존 구매·주문·권한·테마·스펙 회귀114개와 조건검색42개를 함께 실행했다. Backend health·Admin·Storefront HTTP200. UI로 생성한 주문3건을 READ ONLY DB조회로 고객·KRW·주문번호·총액 대조해 모두 일치했다.
-- 04 독립 검토 후 조건검색 테스트에 격리 환경 가드를 추가하고 품절 fixture 존재 여부를 조건부 검사에서 필수 단언으로 변경했다. 최종 조건검색 재실행42/42 PASS, 실패·skip·flaky0. 서비스 기능 코드 변경은 없다. 해당 테스트 파일의 공개 업로드는 별도 승인 대기이며 검증된 수정본은 로컬에 보존했다.
+- 04 독립 검토 후 조건검색 테스트에 격리 환경 가드를 추가하고 품절 fixture 존재 여부를 조건부 검사에서 필수 단언으로 변경했다. 최종 조건검색 재실행42/42 PASS, 실패·skip·flaky0. 서비스 기능 코드 변경은 없다. 변경 Diff의 비밀값·개인정보 검사를 통과하고 사용자 공개 승인 후 `3689f19`에 해당 테스트 파일만 별도 커밋해 승인된 GitHub 계정으로 main에 반영했다.
 - **과거 기록**: 114/114 및 51/51+42/42는 아래에 보존된 중단 전 결과다. 이번 실행의 결과로 재사용하지 않는다. 이번 실행의 원본 보고서·로그·인증 설정은 비공개 로컬 증거에 보관한다.
 - 공유 DB READ ONLY 대조: 기존 relation 이름·종류와 extension 지문이 일치하고 리뷰 테이블 미생성을 확인했다. 컬럼 전체 스키마 불변을 주장하지 않는다.
 - 공개 문서 검토: 실제 키·토큰·비밀번호·고객 연락처·credentials URL은 발견하지 않았다. 테스트 주문 ID와 로컬 DB·접속 설정을 비식별화했다. 공개 API DTO·검증 사실·운영 경계는 유지했다.
+- Worktree 점검: 메인과 기존 Worker 4개 모두 유효하고 정리 대상 누락 Worktree가 없다. 01·02·04 Worktree는 clean이다. 03의 기존 미커밋 변경 3개(중복 계약 helper 제거·테스트·계약 문서 정리)는 해당 Worktree에 그대로 보존하고 비공개 백업도 남겼다. 검증된 main에 추가 통합하거나 Worker 이력을 변경하지 않았다.
+- 최종 Gate H는 이번 새 실행 156/156 및 QA 보완 후 42/42 결과로 PASS다. 서비스 코드가 바뀌지 않아 통과한 E2E·빌드는 반복하지 않았다. 복구 스크립트·원본 테스트 증거·환경 설정은 공개하지 않았다. Pre-AI Commerce Goal의 요구사항을 충족했으며 최종 문서 반영과 원격·Worktree 동일성 확인 후 완료 처리한다.
 - AI Shopping Brain 연동 기반: canonical Product/Variant ID, 구조화 스펙·옵션 override, 공개 승인 리뷰/평점, 조건검색·비교, 최신 가격·재고의 Store API와 승인 후 기존 Cart API 사용 계약이 준비됐다. RAG/Agent runtime·Amazon ETL·실결제·운영 배포·공유DB migration은 이번 범위 밖이다. 다중 QA Worker 안정성 및 대용량 리뷰/동시 import·운영 Redis/eventbus/locking은 추가 운영 검증이 필요하다.
 
 ## Commerce Readiness 후속 구현 — 2026-10-14
